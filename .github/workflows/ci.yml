@@ -1,0 +1,343 @@
+# GitHub Actions — CI pipeline (Phase 16, ISD §16.G, §16.L, §16.Y).
+#
+# Runs on every push to any branch and on every PR. The job
+# executes in the order required by §16.DD:
+#   1. install (pnpm with caching)
+#   2. lint (next lint)
+#   3. typecheck (tsc --noEmit)
+#   4. format check (prettier)
+#   5. unit tests (vitest) with coverage gate
+#   6. integration tests (local Supabase + RLS)
+#   7. build (next build, includes bundle analysis)
+#   8. E2E tests (Playwright)
+#   9. a11y checks (axe-core/playwright)
+#  10. performance budgets (custom script)
+#
+# The job fails fast at any step. All artifacts (Playwright report,
+# coverage report, build output) are uploaded on success or failure.
+#
+# Secrets: NONE in this file. The integration job uses local Supabase
+# via the supabase CLI (no cloud credentials). The E2E job uses
+# placeholder env vars. Production secrets are only used by the
+# deploy-* workflows (separate files), NEVER by CI.
+
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+# Cancel in-progress runs for the same ref (saves CI minutes).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Cache key for pnpm store. Updated automatically when
+  # pnpm-lock.yaml changes (via the cache action).
+  PNPM_CACHE_KEY: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+  # Supabase CLI version (pinned for reproducibility).
+  SUPABASE_CLI_VERSION: '1.207.9'
+  # Node version pinned to match .nvmrc.
+  NODE_VERSION: '20.19.0'
+
+jobs:
+  # ----------------------------------------------------------------
+  # Static analysis (lint + typecheck + format)
+  # ----------------------------------------------------------------
+  static-analysis:
+    name: Lint / Typecheck / Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Format check
+        run: pnpm format:check
+
+  # ----------------------------------------------------------------
+  # Unit tests (vitest) with coverage gate (Phase 16 §16.H).
+  # Threshold: lines >= 70% (Appendix H #5). The vitest config
+  # declares this; failing the gate fails the job.
+  # ----------------------------------------------------------------
+  unit:
+    name: Unit tests + coverage
+    runs-on: ubuntu-latest
+    needs: static-analysis
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests with coverage
+        run: pnpm test:coverage
+
+      - name: Enforce coverage threshold
+        # ISD §16.DD #1: lines >= 70%. Parse the coverage summary
+        # and fail the job if below the threshold. The summary is
+        # produced by @vitest/coverage-v8 to coverage/coverage-summary.json.
+        run: |
+          node -e "
+            const fs = require('fs');
+            const p = 'coverage/coverage-summary.json';
+            const s = JSON.parse(fs.readFileSync(p, 'utf-8'));
+            const lines = s.total.lines.pct;
+            console.log('Total line coverage: ' + lines + '%');
+            if (lines < 70) { console.error('Coverage ' + lines + '% is below the 70% threshold'); process.exit(1); }
+            if (lines < 75) { console.warn('Coverage ' + lines + '% is below the 75% target'); }
+          "
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
+
+  # ----------------------------------------------------------------
+  # Integration tests against a local Supabase (Phase 16 §16.I, §16.BB).
+  # The supabase CLI spins up a local Postgres in a container and
+  # applies all migrations from supabase/migrations/. We then run
+  # our integration test suite (RLS, conditional upserts, extractor
+  # fixtures).
+  # ----------------------------------------------------------------
+  integration:
+    name: Integration (local Supabase + RLS)
+    runs-on: ubuntu-latest
+    needs: static-analysis
+    timeout-minutes: 20
+    # NOTE: no `services:` block — the supabase CLI's `supabase start`
+    # command manages its own Postgres container. A declared-but-empty
+    # service (e.g. `postgres:` with no `image:`) is INVALID in GitHub
+    # Actions and fails workflow validation, so it must be omitted.
+    env:
+      # Local Supabase defaults.
+      SUPABASE_URL: http://127.0.0.1:54321
+      SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE
+      SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UtZGVtbyIsImlhdCI6MTY0MTc2OTIwMCwiZXhwIjoxNzk5NTM1NjAwfQ.7B9_5YKJ_JIpU4YHJl0v8QpZ5YsKgqK4CsRXMrJEbW0
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlLWRlbW8iLCJpYXQiOjE2NDE3NjkyMDAsImV4cCI6MTc5OTUzNTYwMH0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      APP_ENV: development
+      SENTRY_REQUIRED: 'false'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install Supabase CLI
+        run: |
+          curl -fsSL "https://github.com/supabase/cli/releases/download/v${SUPABASE_CLI_VERSION}/supabase_linux_amd64.tar.gz" -o /tmp/supabase.tar.gz
+          tar -xzf /tmp/supabase.tar.gz -C /tmp
+          sudo mv /tmp/supabase /usr/local/bin/supabase
+          supabase --version
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start local Supabase
+        run: supabase start --no-seed
+        # `start` initializes the local stack and applies migrations.
+        # The custom_access_token_hook is NOT in the local stack (it
+        # requires a deployed Supabase project), so integration
+        # tests that need approved/admin claims must seed the JWT
+        # claims themselves (see tests/integration/README).
+
+      - name: Apply migrations to local DB
+        run: supabase db reset --no-seed
+        # `db reset` drops + recreates the local DB and applies all
+        # migrations from supabase/migrations/. We do this AFTER
+        # `start` to guarantee a clean schema state.
+
+      - name: Run integration tests
+        # Integration tests live under tests/integration and import
+        # from the local supabase. The script wraps vitest with
+        # the right include pattern.
+        run: pnpm test:integration
+        env:
+          # Use the service-role key so tests can bypass RLS when
+          # they intentionally seed data; the tests themselves
+          # switch to the anon client to assert RLS behaviors.
+          SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ env.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup
+
+  # ----------------------------------------------------------------
+  # Build (next build). Always runs so we can fail on a prod
+  # build error even when unit/integration pass.
+  # ----------------------------------------------------------------
+  build:
+    name: Production build
+    runs-on: ubuntu-latest
+    needs: static-analysis
+    timeout-minutes: 15
+    env:
+      # Production build needs required env vars (Sentry +
+      # Upstash). The deploy workflow supplies real secrets; here
+      # we set placeholder values so the build's env-validation
+      # gate accepts the build.
+      SUPABASE_URL: https://placeholder.supabase.co
+      SUPABASE_SERVICE_ROLE_KEY: placeholder
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      R2_ACCOUNT_ID: placeholder
+      R2_ACCESS_KEY_ID: placeholder
+      R2_SECRET_ACCESS_KEY: placeholder
+      APP_ENV: production
+      UPSTASH_REDIS_REST_URL: https://placeholder.upstash.io
+      UPSTASH_REDIS_REST_TOKEN: placeholder
+      SENTRY_DSN: https://placeholder@sentry.io/0
+      SENTRY_REQUIRED: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Enforce performance budgets
+        # Phase 14 (ISD §14.G) + Phase 16 (ISD §16.Y): the
+        # performance-budgets.json file is the source of truth.
+        # We parse the Next.js build output (.next/build-manifest.json
+        # + .next/app-build-manifest.json) and assert each route's
+        # first-load JS is under its budget.
+        run: pnpm perf:budgets
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            .next/
+            !.next/cache/
+          retention-days: 7
+
+  # ----------------------------------------------------------------
+  # E2E (Playwright) + a11y (axe). Runs after a successful build.
+  # ----------------------------------------------------------------
+  e2e:
+    name: E2E + a11y
+    runs-on: ubuntu-latest
+    needs: [build, unit, integration]
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      APP_ENV: development
+      SENTRY_REQUIRED: 'false'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        # The Playwright config starts a webServer (pnpm dev or
+        # pnpm start). The tests cover critical journeys: auth,
+        # library, reader, offline, admin, a11y.
+        run: pnpm test:e2e
+
+      - name: Run a11y-only checks
+        # Dedicated a11y suite — separate from the e2e tests so we
+        # can target specific pages with the axe-core rule packs.
+        run: pnpm test:a11y
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Upload test-results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: test-results/
+          retention-days: 14

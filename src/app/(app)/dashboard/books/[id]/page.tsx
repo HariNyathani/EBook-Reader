@@ -14,11 +14,7 @@ export const metadata = {
 /**
  * Book details page — displays cover, metadata, progress, and actions.
  */
-export default async function BookDetailsPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function BookDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const claims = await requireApproved();
   const { id } = await params;
 
@@ -71,9 +67,7 @@ export default async function BookDetailsPage({
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">{book.title}</h1>
-            {book.author && (
-              <p className="mt-2 text-lg text-gray-600">by {book.author}</p>
-            )}
+            {book.author && <p className="mt-2 text-lg text-gray-600">by {book.author}</p>}
           </div>
 
           {/* Progress */}

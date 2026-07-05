@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ServiceWorkerRegistrar } from '@/components/pwa/service-worker-registrar';
+import { ReportVitals } from '@/lib/perf/report-vitals';
+import { LiveAnnouncer } from '@/components/a11y/announcer';
 
 export const metadata: Metadata = {
   title: 'EPUB Reader',
@@ -19,8 +21,10 @@ export default function RootLayout({
         {children}
         {/* Phase 2: Registers /sw.js in production (no-op in dev unless NEXT_PUBLIC_SW_DEV=true) */}
         <ServiceWorkerRegistrar />
-        {/* Phase 4: Auth session provider goes here */}
-        {/* Phase 2: Error boundaries are per-segment (error.tsx files) — no wrapper needed here */}
+        {/* Phase 14: Web Vitals monitoring (no visible UI). PII-free. */}
+        <ReportVitals />
+        {/* Phase 15 (ISD §15.AA): Shared ARIA live region for SR announcements. */}
+        <LiveAnnouncer />
       </body>
     </html>
   );

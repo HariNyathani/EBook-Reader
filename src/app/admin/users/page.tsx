@@ -22,7 +22,12 @@ export default async function AdminUsersPage({
   const status = (params.status as UserFilter) ?? 'all';
   const page = Math.max(1, parseInt(params.page ?? '1', 10) || 1);
 
-  const { rows: users, total } = await listUsers({ query, status, page, pageSize: ADMIN_USERS_PAGE_SIZE });
+  const { rows: users, total } = await listUsers({
+    query,
+    status,
+    page,
+    pageSize: ADMIN_USERS_PAGE_SIZE,
+  });
 
   const totalPages = Math.ceil(total / ADMIN_USERS_PAGE_SIZE);
 
@@ -84,7 +89,11 @@ export default async function AdminUsersPage({
               <Link
                 href={{
                   pathname: '/admin/users',
-                  query: { ...(query && { query }), ...(status !== 'all' && { status }), page: page - 1 },
+                  query: {
+                    ...(query && { query }),
+                    ...(status !== 'all' && { status }),
+                    page: page - 1,
+                  },
                 }}
                 className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
@@ -95,7 +104,11 @@ export default async function AdminUsersPage({
               <Link
                 href={{
                   pathname: '/admin/users',
-                  query: { ...(query && { query }), ...(status !== 'all' && { status }), page: page + 1 },
+                  query: {
+                    ...(query && { query }),
+                    ...(status !== 'all' && { status }),
+                    page: page + 1,
+                  },
                 }}
                 className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >

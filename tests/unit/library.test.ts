@@ -157,7 +157,7 @@ describe('cache isolation (critical — ISD §8.Z)', () => {
   it('different userIds produce different library tags', () => {
     const user1Tag = userLibraryTag('user-1');
     const user2Tag = userLibraryTag('user-2');
-    
+
     // Critical: tags must be different to prevent cross-user cache leakage
     expect(user1Tag).not.toBe(user2Tag);
   });
@@ -165,7 +165,7 @@ describe('cache isolation (critical — ISD §8.Z)', () => {
   it('different userIds produce different progress tags', () => {
     const user1Tag = progressTag('user-1');
     const user2Tag = progressTag('user-2');
-    
+
     // Critical: tags must be different to prevent cross-user cache leakage
     expect(user1Tag).not.toBe(user2Tag);
   });

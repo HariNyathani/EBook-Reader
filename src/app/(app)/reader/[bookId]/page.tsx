@@ -13,6 +13,9 @@ import ReaderView from '@/features/reader/components/reader-view.dynamic';
  *
  * Phase 10: Fetch initial progress and pass initialCfi for resume reading.
  *
+ * Phase 13: Passes the current userId to the reader so fetchBookBlob can
+ * prefer the offline copy (IndexedDB) when present.
+ *
  * ISD §9.L: Route is force-dynamic (auth + per-book).
  */
 interface ReaderPageProps {
@@ -41,7 +44,13 @@ export default async function ReaderPage({ params }: ReaderPageProps) {
   // Render the client-side reader (dynamic import, ssr: false)
   return (
     <main className="h-screen w-full overflow-hidden">
-      <ReaderView bookId={bookId} format={book.format} initialCfi={initialCfi ?? undefined} />
+      <ReaderView
+        bookId={bookId}
+        userId={claims.userId}
+        format={book.format}
+        initialCfi={initialCfi ?? undefined}
+        bookTitle={book.title}
+      />
     </main>
   );
 }

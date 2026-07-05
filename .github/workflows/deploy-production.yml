@@ -1,0 +1,211 @@
+# GitHub Actions — Production deploy (Phase 16, ISD §16.G, §16.H, §16.L, §16.V).
+#
+# Promotes a green main to production. Sequence:
+#   1. verify-migrations: applies all migrations to a SCRATCH
+#      Supabase project and asserts success + presence of expected
+#      objects. (Phase 16 §16.G.)
+#   2. apply migrations to the PRODUCTION Supabase project. Migrations
+#      are additive/safe or ship a documented reverse (ISD §13.0.2 F).
+#   3. build + deploy to Vercel production.
+#   4. run prod smoke (health + login + open book).
+#   5. create a Sentry release + upload source maps.
+#
+# Triggers: push to main (after CI green), or manual workflow_dispatch.
+# Required secrets:
+#   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+#   PROD_SUPABASE_URL, PROD_SUPABASE_ANON_KEY,
+#   PROD_SUPABASE_SERVICE_ROLE_KEY, PROD_SUPABASE_DB_URL
+#   PROD_R2_*
+#   PROD_UPSTASH_*
+#   PROD_SENTRY_DSN, SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT
+#   PROD_SMOKE_EMAIL, PROD_SMOKE_PASSWORD, PROD_SMOKE_BOOK_ID
+#   SCRATCH_SUPABASE_DB_URL (for verify-migrations)
+#
+# Environment isolation (ISD §13.0.2 E): production uses a
+# separate Supabase project, R2 bucket, Upstash, and Sentry project
+# from preview/dev. Smoke uses a non-privileged test account.
+
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+  # Production deploys are NEVER cancelled mid-flight.
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  # ----------------------------------------------------------------
+  # Pre-flight: verify migrations apply cleanly to a scratch DB.
+  # Blocks the deploy if a migration is broken.
+  # ----------------------------------------------------------------
+  verify-migrations:
+    name: Verify migrations on scratch DB
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SCRATCH_SUPABASE_DB_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply all migrations to scratch DB
+        # The scratch DB is a throwaway project; this script
+        # applies all migrations in order and asserts that the
+        # resulting schema has the expected tables/policies.
+        # Throws on the first failure.
+        run: pnpm verify:migrations
+
+  # ----------------------------------------------------------------
+  # Main: build, apply prod migrations, deploy, smoke, Sentry release.
+  # ----------------------------------------------------------------
+  production:
+    name: Build, deploy, smoke, Sentry release
+    runs-on: ubuntu-latest
+    needs: verify-migrations
+    timeout-minutes: 30
+    environment: production
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PROD_SUPABASE_ANON_KEY }}
+      SUPABASE_URL: ${{ secrets.PROD_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PROD_SUPABASE_SERVICE_ROLE_KEY }}
+      R2_ACCOUNT_ID: ${{ secrets.PROD_R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.PROD_R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.PROD_R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: epub-reader-assets-production
+      UPSTASH_REDIS_REST_URL: ${{ secrets.PROD_UPSTASH_REDIS_REST_URL }}
+      UPSTASH_REDIS_REST_TOKEN: ${{ secrets.PROD_UPSTASH_REDIS_REST_TOKEN }}
+      SENTRY_DSN: ${{ secrets.PROD_SENTRY_DSN }}
+      SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_RELEASE: ${{ github.sha }}
+      APP_ENV: production
+      SENTRY_REQUIRED: 'true'
+      NEXT_PUBLIC_APP_URL: https://epub-reader.example.com
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # needed for git-based changelog / release notes
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply prod migrations
+        # PROD_SUPABASE_DB_URL is the Postgres connection string for
+        # the production Supabase project. The supabase CLI applies
+        # all migrations in supabase/migrations/ that have not yet
+        # been applied. (db push is the same as supabase db push.)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.PROD_SUPABASE_DB_URL }}
+        run: pnpm db:migrate:prod
+
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
+      - name: Build
+        run: pnpm build
+
+      - name: Deploy to Vercel production
+        id: deploy
+        run: |
+          URL=$(vercel deploy --yes --token=${{ secrets.VERCEL_TOKEN }} --prod --archive=tgz)
+          echo "prod-url=$URL" >> $GITHUB_OUTPUT
+          echo "Production URL: $URL"
+
+      - name: Wait for production to be ready
+        run: |
+          for i in $(seq 1 30); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ steps.deploy.outputs.prod-url }}/api/health" || echo "000")
+            if [ "$STATUS" = "200" ] || [ "$STATUS" = "503" ]; then
+              echo "Production is up (status=$STATUS)"
+              exit 0
+            fi
+            echo "Waiting for production... (status=$STATUS, attempt $i/30)"
+            sleep 5
+          done
+          echo "Production did not become ready in time"
+          exit 1
+
+      - name: Run smoke test
+        id: smoke
+        env:
+          SMOKE_URL: ${{ steps.deploy.outputs.prod-url }}
+          SMOKE_EMAIL: ${{ secrets.PROD_SMOKE_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.PROD_SMOKE_PASSWORD }}
+          SMOKE_BOOK_ID: ${{ secrets.PROD_SMOKE_BOOK_ID }}
+        run: |
+          set -e
+          pnpm smoke
+          echo "smoke=ok" >> $GITHUB_OUTPUT
+
+      - name: Create Sentry release + upload source maps
+        if: steps.smoke.outputs.smoke == 'ok'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_RELEASE: ${{ github.sha }}
+        run: |
+          npx @sentry/cli releases new "$SENTRY_RELEASE" --org="$SENTRY_ORG" --project="$SENTRY_PROJECT"
+          npx @sentry/cli releases files "$SENTRY_RELEASE" upload-sourcemaps .next/static/chunks .next/static/chunks/pages .next/server --url-prefix="~/_next"
+          npx @sentry/cli releases finalize "$SENTRY_RELEASE"
+
+      - name: Notify Slack on success
+        if: steps.smoke.outputs.smoke == 'ok'
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "✅ Production deploy succeeded: ${{ steps.deploy.outputs.prod-url }} (release ${{ github.sha }})"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Auto-rollback on smoke failure
+        if: failure()
+        # Vercel keeps the previous successful deploy available as
+        # the "previous production" deploy. We promote it back to
+        # the active slot. This is a fast path; for DB issues the
+        # full rollback procedure in ROLLBACK.md is required.
+        run: |
+          echo "Smoke failed — promoting previous Vercel deploy"
+          vercel rollback --yes --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

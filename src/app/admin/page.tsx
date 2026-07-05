@@ -15,9 +15,7 @@ export default async function AdminPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Admin Overview</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          System-wide statistics and management summary.
-        </p>
+        <p className="mt-1 text-sm text-gray-500">System-wide statistics and management summary.</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

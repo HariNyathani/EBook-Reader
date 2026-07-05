@@ -76,7 +76,10 @@ export async function listUsers(params: ListUsersParams = {}): Promise<ListUsers
 
   let queryBuilder = admin
     .from('profiles')
-    .select('*', { count: 'exact' })
+    // Phase 14 (ISD §14.H): column pruning — the admin table only
+    // renders a few columns. We list them explicitly so the payload
+    // does not grow when a future column is added to profiles.
+    .select('id, email, is_approved, is_admin, created_at, updated_at', { count: 'exact' })
     .order('created_at', { ascending: false });
 
   // Apply search filter (email substring match)

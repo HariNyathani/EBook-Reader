@@ -37,9 +37,7 @@ export async function listBooks(params: ListBooksParams = {}): Promise<ListBooks
     .order('created_at', { ascending: false });
 
   if (query?.trim()) {
-    queryBuilder = queryBuilder.or(
-      `title.ilike.%${query.trim()}%,author.ilike.%${query.trim()}%`,
-    );
+    queryBuilder = queryBuilder.or(`title.ilike.%${query.trim()}%,author.ilike.%${query.trim()}%`);
   }
 
   const from = (page - 1) * pageSize;

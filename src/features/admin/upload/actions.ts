@@ -10,6 +10,8 @@ import { putObject, deleteObject, R2NotFoundError } from '@/lib/r2';
 import { activeExtractor, EpubInvalidError, EpubEncryptedError, EpubParseError } from '@/lib/epub';
 import { uploadMetaSchema, deleteBookSchema } from './schemas';
 import { getMaxUploadBytes, ACCEPTED_EXT, ACCEPTED_MIME } from './constants';
+import { uploadLimiter } from '@/lib/security/rate-limit';
+import { logger } from '@/lib/logging/logger';
 
 /**
  * Uploads a book EPUB file and creates a database record.
@@ -30,11 +32,25 @@ export async function uploadBookAction(
   formData: FormData,
 ): Promise<ActionResult<{ bookId: string }>> {
   // Step 1: Authorization
+  let adminUserId: string;
   try {
-    await requireAdmin();
+    const claims = await requireAdmin();
+    adminUserId = claims.userId;
   } catch (err) {
     if ((err as { digest?: string }).digest?.startsWith('NEXT_REDIRECT')) throw err;
     return fail('Unauthorized', 'FORBIDDEN');
+  }
+
+  // Step 1b: Rate-limit per admin user (defense against a runaway
+  // admin client uploading too fast). 20/hour is generous; the
+  // pipeline itself is slow (EPUB extraction + 2 R2 PUTs).
+  const rl = await uploadLimiter(adminUserId);
+  if (!rl.success) {
+    logger.warn('rate_limit.exceeded', { policy: 'upload', userId: adminUserId });
+    return fail(
+      `Upload rate limit exceeded. Please try again in ${rl.retryAfter} seconds.`,
+      'RATE_LIMITED',
+    );
   }
 
   // Step 2: Validate file

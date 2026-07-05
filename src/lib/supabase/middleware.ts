@@ -12,6 +12,12 @@ import type { Database } from '@/types/database';
 export interface MiddlewareClaims {
   isApproved: boolean;
   isAdmin: boolean;
+  /**
+   * The Supabase user id. `null` for unauthenticated requests; populated
+   * for authenticated requests so middleware can perform per-user
+   * rate limiting and other keyed lookups (Phase 15).
+   */
+  userId: string | null;
 }
 
 export interface UpdateSessionResult {
@@ -65,8 +71,36 @@ function decodeJwtPayload(accessToken: string): Record<string, unknown> | null {
  * @param request - The incoming Next.js request
  * @returns The response (with refreshed cookies) and decoded claims (or null).
  */
-export async function updateSession(request: NextRequest): Promise<UpdateSessionResult> {
-  let response = NextResponse.next({ request });
+export async function updateSession(
+  request: NextRequest,
+  /**
+   * Extra request headers to forward to the downstream document/RSC
+   * layer (Phase 15). CRITICAL: the per-request CSP nonce must be
+   * threaded here so Next.js stamps it onto its own inline bootstrap /
+   * hydration scripts. Next.js reads the nonce from the incoming
+   * `Content-Security-Policy` request header — setting it only on the
+   * *response* is NOT enough and would leave Next's inline scripts
+   * un-nonced (blocked by strict-dynamic CSP → app fails to hydrate).
+   */
+  forwardRequestHeaders?: Record<string, string>,
+): Promise<UpdateSessionResult> {
+  /**
+   * Build the request-init for `NextResponse.next`. We clone the
+   * (possibly cookie-mutated) request headers and layer the forwarded
+   * headers (CSP + nonce) on top so both the refreshed cookies AND the
+   * nonce reach the app renderer.
+   */
+  const nextRequestInit = (): { headers: Headers } => {
+    const headers = new Headers(request.headers);
+    if (forwardRequestHeaders) {
+      for (const [key, value] of Object.entries(forwardRequestHeaders)) {
+        headers.set(key, value);
+      }
+    }
+    return { headers };
+  };
+
+  let response = NextResponse.next({ request: nextRequestInit() });
 
   const supabase = createServerClient<Database>(
     publicEnv.NEXT_PUBLIC_SUPABASE_URL,
@@ -80,7 +114,7 @@ export async function updateSession(request: NextRequest): Promise<UpdateSession
           cookiesToSet: Array<{ name: string; value: string; options?: Record<string, unknown> }>,
         ) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
+          response = NextResponse.next({ request: nextRequestInit() });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(
               name,
@@ -117,6 +151,7 @@ export async function updateSession(request: NextRequest): Promise<UpdateSession
       // Fail-closed: absent/false claims (e.g. hook not enabled) → unapproved, non-admin.
       isApproved: payload?.['is_approved'] === true,
       isAdmin: payload?.['is_admin'] === true,
+      userId: user.id,
     };
   }
 

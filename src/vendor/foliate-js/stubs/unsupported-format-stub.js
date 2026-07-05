@@ -23,9 +23,7 @@
 
 class UnsupportedTypeError extends Error {
   constructor(format) {
-    super(
-      `Unsupported book format: ${format}. This app only supports EPUB.`,
-    );
+    super(`Unsupported book format: ${format}. This app only supports EPUB.`);
     this.name = 'UnsupportedTypeError';
   }
 }

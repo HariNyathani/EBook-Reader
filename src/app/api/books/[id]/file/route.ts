@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getClaims } from '@/features/auth/session';
 import { getObjectStream, R2NotFoundError } from '@/lib/r2';
 import { epubDeliveryHeaders } from '@/lib/http/headers';
+import { cacheHeaderFor } from '@/lib/cache/http';
 import type { Book } from '@/types';
 
 /**
@@ -43,11 +44,7 @@ export async function GET(
 
   // Step 3: Look up book (server client; RLS restricts to approved users)
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('books')
-    .select('*')
-    .eq('id', id)
-    .limit(1);
+  const { data, error } = await supabase.from('books').select('*').eq('id', id).limit(1);
 
   const books = (data as Book[] | null) ?? [];
 
@@ -62,6 +59,13 @@ export async function GET(
     const { body, contentLength } = await getObjectStream(book.file_key);
 
     const headers = epubDeliveryHeaders();
+    // Phase 14 (ISD §14.H): re-affirm the no-store policy via the
+    // centralized helper. epubDeliveryHeaders() already sets
+    // `Cache-Control: no-store`, so this is defense-in-depth — the
+    // value is sourced from the same CachePolicy enum that drives
+    // other routes. A future change to the policy propagates here
+    // automatically.
+    headers['Cache-Control'] = cacheHeaderFor('no-store');
     if (contentLength > 0) {
       headers['Content-Length'] = contentLength.toString();
     }

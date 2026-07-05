@@ -22,6 +22,8 @@ export const ROUTES = Object.freeze({
    * Example: ROUTES.READER('abc-123') === '/reader/abc-123'
    */
   READER: (bookId: string) => `/reader/${bookId}`,
+  /** Settings page (Phase 12). */
+  SETTINGS: '/settings',
 
   /** Admin routes (require auth + admin claim) */
   ADMIN: '/admin',

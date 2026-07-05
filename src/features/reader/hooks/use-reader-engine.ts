@@ -31,6 +31,10 @@ interface UseReaderEngineProps {
   containerRef: RefObject<HTMLElement | null>;
   /** The book UUID to load. */
   bookId: string;
+  /** Current user id (server-derived from session claims). Used by
+   *  the offline-book fallback in fetchBookBlob. Optional for safety;
+   *  when null, the reader always goes to the network. */
+  userId?: string | null;
   /** The book format (only 'epub' in Phase 9). */
   format: BookFormat;
   /** Optional initial CFI for resume reading (Phase 10). */
@@ -66,6 +70,7 @@ interface ReaderControls {
 export function useReaderEngine({
   containerRef,
   bookId,
+  userId,
   format,
   initialCfi,
 }: UseReaderEngineProps): ReaderControls {
@@ -82,6 +87,8 @@ export function useReaderEngine({
   const setCurrentCfi = useReaderStore((s) => s.setCurrentCfi);
   const setFraction = useReaderStore((s) => s.setFraction);
   const setTocStore = useReaderStore((s) => s.setToc);
+  // Phase 11: track the current chapter href for TOC highlighting.
+  const setActiveChapterHref = useReaderStore((s) => s.setActiveChapterHref);
 
   // Subscribe to the typography/theme slice for setStyles
   const theme = useReaderStore((s) => s.theme);
@@ -136,6 +143,10 @@ export function useReaderEngine({
             case 'relocate':
               setCurrentCfi(event.location.cfi);
               setFraction(event.location.fraction);
+              // Phase 11: keep the active chapter href in sync for TOC highlighting.
+              if (event.location.chapterHref !== undefined) {
+                setActiveChapterHref(event.location.chapterHref);
+              }
               break;
 
             case 'error':
@@ -145,8 +156,12 @@ export function useReaderEngine({
           }
         });
 
-        // Fetch the book blob
-        const { objectURL, revoke } = await fetchBookBlob(bookId, abortController.signal);
+        // Fetch the book blob (Phase 13: prefer the offline copy when present)
+        const { objectURL, revoke } = await fetchBookBlob(
+          bookId,
+          userId ?? null,
+          abortController.signal,
+        );
         revokeRef.current = revoke;
 
         // Open the book
@@ -191,16 +206,19 @@ export function useReaderEngine({
       setCurrentCfi(null);
       setFraction(0);
       setTocStore([]);
+      setActiveChapterHref(null);
     };
   }, [
     containerRef,
     bookId,
+    userId,
     format,
     initialCfi,
     setIsReady,
     setCurrentCfi,
     setFraction,
     setTocStore,
+    setActiveChapterHref,
   ]);
 
   /**

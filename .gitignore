@@ -40,6 +40,26 @@ test-results/
 *.tsbuildinfo
 next-env.d.ts
 
+# Serwist-generated service worker (Phase 13)
+# Source: src/app/sw.ts  →  Build output: public/sw.js (+ .map, workbox-*.js)
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js
+public/workbox-*.js
+public/swe-worker-*.js.map
+
+# Phase 16 — Sentry build artifacts
+.sentryclirc
+
+# Phase 16 — test artifacts
+playwright-report/
+test-results/
+.playwright/
+
+# Phase 16 — coverage
+coverage/
+*.lcov
+
 # Editor directories
 .vscode/*
 !.vscode/extensions.json

@@ -13,7 +13,7 @@ export default function DashboardLoading() {
       {/* Catalog skeleton */}
       <section className="space-y-4">
         <div className="h-7 w-40 animate-pulse rounded-lg bg-gray-200" />
-        
+
         {/* Toolbar skeleton */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="h-10 flex-1 animate-pulse rounded-lg bg-gray-200" />

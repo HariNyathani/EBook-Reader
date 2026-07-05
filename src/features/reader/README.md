@@ -74,6 +74,7 @@ src/vendor/foliate-js/
 ## State Management (reader-store)
 
 ### Durable Fields (Phase 12 persistence)
+
 - `theme`: 'light' | 'sepia' | 'dark'
 - `fontFamily`: string (CSS value)
 - `fontSize`: number (pixels)
@@ -82,6 +83,7 @@ src/vendor/foliate-js/
 - `textAlign`: 'start' | 'justify'
 
 ### Transient Fields (populated by engine)
+
 - `currentCfi`: string | null
 - `isReady`: boolean
 - `toc`: TocItem[]
@@ -98,11 +100,77 @@ src/vendor/foliate-js/
 ✅ CSP extended (blob: for frame-src, img-src)
 ✅ Vendored foliate-js with ambient types
 
-## Out of Scope (later phases)
+## Phase 10 Scope
 
-- Phase 10: Progress persistence, resume reading, offline queue
-- Phase 11: Chrome (toolbar, progress bar), TOC drawer, search, tap zones, gestures
-- Phase 12: Typography persistence (zustand persist), cloud sync
+✅ Debounced progress sync (3s) to `reading_progress` via Server Action
+✅ Offline queue (IndexedDB, last-write-wins per book) with keep-dirty-on-failure
+✅ `POST /api/progress` beacon endpoint for guaranteed last-position save
+✅ Resume reading (initial CFI passed to `engine.goTo`)
+✅ `reading_sessions` capture-only foundation (no aggregation)
+✅ Dashboard "Continue Reading" section
+✅ Multi-device LWW conditional upsert
+
+## Phase 11 Scope (Reader Experience & UI)
+
+✅ Auto-hiding reader chrome (toolbar + bottom progress bar)
+✅ TOC drawer (left-side, with current-chapter highlight)
+✅ In-book search panel (debounced, async iteration, with highlights)
+✅ Tap zones (left/right/center) + keyboard shortcuts + swipe gestures
+✅ Typography control panel (font/size/line-height/margin/justify)
+✅ Theme switcher (light/sepia/dark)
+✅ Loading + error states with retry
+✅ Focus traps + Escape-to-close on all panels
+✅ `prefers-reduced-motion` honoured by all animations
+✅ Reader UI never touches the engine iframe DOM (SAD §5.1)
+
+### Phase 11 Component Composition
+
+`ReaderView` composes the full reader UI in this order (back-to-front):
+
+1. `<div ref={containerRef}>` — engine mount point (foliate-js renders here)
+2. `<TapZones>` — transparent pointer/touch handler (no DOM)
+3. `<ReaderChrome>` — auto-hiding top toolbar + bottom progress bar
+4. `<TocDrawer>`, `<SearchPanel>`, `<SettingsPopover>` — mutually-exclusive panels
+5. `<ReaderLoading>`, `<ReaderError>` — overlay states
+
+All engine interaction goes through `useReaderEngine` (SAD §5.1). No
+component touches the engine iframe DOM directly. Commands: `next`, `prev`,
+`goTo`, `search`, `setStyles` (via the styles mapper). Events: `ready`,
+`relocate` (drives `setCurrentCfi`, `setFraction`, `setActiveChapterHref`).
+
+### Phase 11 Hooks
+
+- `useReaderControls` — keyboard shortcut map (←/→/Esc/`/`/t/+/-/c/Space/PageUp/PageDown/Enter)
+- `useTapZones` — pointer/tap with selection/swipe awareness
+- `useSwipeGestures` — mobile horizontal swipes
+- `useChromeVisibility` — auto-hide/reveal logic (3s idle)
+- `useFocusTrap` — focus trap utility (Tab/Shift+Tab, Escape)
+- `usePrefersReducedMotion` — reactive media query
+
+## Phase 12 Scope (Personalization & Preferences)
+
+See `src/features/preferences/README.md` for the cloud-sync / settings
+surface. The reader-store durability is the bridge between the two
+features:
+
+- The reader-store is wrapped in `zustand/persist` with `partialize`
+  persisting only the durable preference slice (theme, fontFamily,
+  fontSize, lineHeight, margin, textAlign). Transient state
+  (currentCfi, isReady, toc, fraction, search*, activeChapterHref,
+  lastSavedAt, syncState) is excluded.
+- A `PreferencesProvider` mounted in the (app) layout hydrates from
+  localStorage instantly on load, then reconciles with the cloud
+  (LWW by `updated_at`).
+- The `/settings` page exposes the same controls (TypographyPanel +
+  ThemeSwitcher) plus a "Reset to defaults" action and account info.
+
+## Out of Scope (future phases)
+
+- Highlights & annotations (SAD §7, jsonb namespace reserved)
+- In-book dictionary (SAD §7, jsonb namespace reserved)
+- Reading-statistics charts (capture-only foundation in place)
+- Non-EPUB formats (SAD §7 — `FormatRouter` seam already exists)
+- Deeper PWA offline caching of owned books
 
 ## Security
 

@@ -32,13 +32,7 @@
  * iframe. This adapter does not expose the iframe to React.
  */
 
-import type {
-  ReaderEngine,
-  ReaderEngineEvent,
-  ReaderStyle,
-  TocItem,
-  SearchResult,
-} from './types';
+import type { ReaderEngine, ReaderEngineEvent, ReaderStyle, TocItem, SearchResult } from './types';
 import { mapStyleToCss } from '../lib/styles-mapper';
 // Type-only imports of the vendored foliate-js module — these resolve to
 // the ambient declarations in src/vendor/foliate-js/foliate.d.ts. We import
@@ -262,10 +256,7 @@ export class FoliateEngine implements ReaderEngine {
       // paginator uses the `margin` attribute as the header/footer height,
       // not the page margin per se — but it's the only layout knob that
       // matches the intent of "give the text more breathing room".
-      const marginPx = Math.max(
-        0,
-        Math.round((window.innerHeight * style.marginPct) / 100),
-      );
+      const marginPx = Math.max(0, Math.round((window.innerHeight * style.marginPct) / 100));
       view.renderer.setAttribute('margin', `${marginPx}px`);
     } catch (err) {
       // Style application is best-effort; don't crash the reader.
@@ -349,9 +340,8 @@ export class FoliateEngine implements ReaderEngine {
     return entries.map((entry) => ({
       label: entry.label,
       href: entry.href,
-      children: entry.subitems && entry.subitems.length > 0
-        ? this.#mapToc(entry.subitems)
-        : undefined,
+      children:
+        entry.subitems && entry.subitems.length > 0 ? this.#mapToc(entry.subitems) : undefined,
     }));
   }
 }

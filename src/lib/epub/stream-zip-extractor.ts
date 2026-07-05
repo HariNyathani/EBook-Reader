@@ -132,7 +132,8 @@ export const streamZipExtractor: MetadataExtractor = {
       }
 
       // Step 7: Apply form overrides
-      const title = input.formTitle?.trim() || parsedTitle || deriveTitleFromFilename(input.filename);
+      const title =
+        input.formTitle?.trim() || parsedTitle || deriveTitleFromFilename(input.filename);
       const author = input.formAuthor?.trim() || parsedAuthor || null;
 
       // Step 8: Return metadata (zip closed in finally)

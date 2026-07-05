@@ -1,0 +1,59 @@
+{
+  "$comment": "Phase 14 (ISD §14.G) — performance budgets enforced in CI (Phase 16). Each value is the hard ceiling per route. The CI gate fails the build if any route exceeds its budget.",
+
+  "firstLoadJsPerRoute": {
+    "$comment": "Total first-load JS shipped to the client (parsed + executed) for each route, including the shared chunks. Values are in KB.",
+    "/": 110,
+    "/login": 120,
+    "/register": 120,
+    "/pending-approval": 130,
+    "/dashboard": 130,
+    "/reader/[bookId]": 160,
+    "/admin": 130,
+    "/admin/users": 130,
+    "/admin/books": 130,
+    "/admin/uploads": 140,
+    "/settings": 140,
+    "/offline": 120
+  },
+
+  "totalShellSize": {
+    "$comment": "Sum of all precached app-shell assets (chunks + manifest + icons + manifest.webmanifest).",
+    "maxKb": 600
+  },
+
+  "webVitals": {
+    "$comment": "Core Web Vitals targets, measured on key routes under simulated mid-tier mobile. CI gates the build when a route regresses by more than 10% vs the target.",
+    "lcpMs": 2500,
+    "inpMs": 200,
+    "clsScore": 0.1,
+    "ttfbMs": 600
+  },
+
+  "readerInteraction": {
+    "$comment": "Reader-specific performance budget. Page-turn latency is measured on a mid-tier device; exceeding this triggers a regression alert (not a build failure).",
+    "pageTurnMs": 100
+  },
+
+  "queries": {
+    "$comment": "Database-side performance budgets. Enforced indirectly: CI runs EXPLAIN on the hot queries; a sequential scan on a 1000-row table fails the gate.",
+    "maxSequentialScans": 0,
+    "maxRowsScannedForCatalogSearch": 1000,
+    "maxRowsScannedForUserSearch": 1000
+  },
+
+  "rls": {
+    "$comment": "RLS-related performance budgets. Indexes used by RLS predicates must exist (verified by EXPLAIN).",
+    "indexesRequired": [
+      "public.profiles(id) where is_approved = false",
+      "public.books(created_at desc)",
+      "public.books(title) gin_trgm_ops",
+      "public.books(author) gin_trgm_ops",
+      "public.profiles(email) gin_trgm_ops",
+      "public.user_libraries(user_id)",
+      "public.user_libraries(user_id, book_id)",
+      "public.reading_progress(user_id, book_id)",
+      "public.reading_progress(user_id, updated_at desc)"
+    ]
+  }
+}

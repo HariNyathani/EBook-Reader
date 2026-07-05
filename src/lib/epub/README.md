@@ -80,12 +80,13 @@ The upload action (`src/features/admin/upload/actions.ts`) calls:
 const meta = await activeExtractor.extract({
   fileBytes,
   filename: file.name,
-  formTitle,  // optional override
+  formTitle, // optional override
   formAuthor, // optional override
 });
 ```
 
 Error mapping:
+
 - `EpubInvalidError` / `EpubEncryptedError` → `fail('INVALID_FILE')`
 - `EpubParseError` → `fail('INVALID_FILE')`
 - Cover extraction failure → dropped gracefully (book still created)
@@ -93,6 +94,7 @@ Error mapping:
 ## Testing
 
 Unit tests in `tests/unit/epub-extractor.test.ts` cover:
+
 - OPF parsing (EPUB2 and EPUB3 cover detection)
 - Container.xml parsing
 - Form override precedence

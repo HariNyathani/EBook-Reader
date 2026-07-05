@@ -46,9 +46,7 @@ export function useReadingSession(bookId: string): void {
 
       const endedAt = new Date();
       const startedAt = sessionStartRef.current;
-      const durationSeconds = Math.floor(
-        (endedAt.getTime() - startedAt.getTime()) / 1000,
-      );
+      const durationSeconds = Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000);
 
       // Only record if >= threshold
       if (durationSeconds >= MIN_SESSION_SECONDS) {
@@ -97,9 +95,7 @@ export function useReadingSession(bookId: string): void {
 
       const endedAt = new Date();
       const startedAt = sessionStartRef.current;
-      const durationSeconds = Math.floor(
-        (endedAt.getTime() - startedAt.getTime()) / 1000,
-      );
+      const durationSeconds = Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000);
 
       if (durationSeconds >= MIN_SESSION_SECONDS) {
         // Best-effort: don't await (pagehide is synchronous)

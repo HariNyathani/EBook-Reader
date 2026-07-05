@@ -32,6 +32,25 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url('NEXT_PUBLIC_SUPABASE_URL must be a valid URL'),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, 'NEXT_PUBLIC_SUPABASE_ANON_KEY is required'),
   NEXT_PUBLIC_APP_URL: z.string().url('NEXT_PUBLIC_APP_URL must be a valid URL'),
+  // Phase 13 (ISD §13.K): opt-out flag for the service worker. Default
+  // enabled in production; set NEXT_PUBLIC_PWA_ENABLED=false to disable
+  // the SW (e.g. in a preview environment that does not yet have the
+  // offline infrastructure ready).
+  NEXT_PUBLIC_PWA_ENABLED: z
+    .union([z.literal('true'), z.literal('false')])
+    .optional()
+    .transform((v): boolean => (v === undefined ? true : v === 'true')),
+  // Phase 15 (ISD §15.G, §15.D): browser-side Sentry DSN. Safe to
+  // expose publicly (per Sentry's own documentation). When unset the
+  // browser SDK is a no-op.
+  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+  // Phase 15 (ISD §15.G): opt-in for in-browser Sentry. When 'false'
+  // the client SDK skips initialization entirely (useful for E2E
+  // tests that don't want Sentry side effects).
+  NEXT_PUBLIC_SENTRY_ENABLED: z
+    .union([z.literal('true'), z.literal('false')])
+    .optional()
+    .transform((v): boolean => (v === undefined ? true : v === 'true')),
 });
 
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
@@ -42,10 +61,18 @@ export type PublicEnv = z.infer<typeof publicEnvSchema>;
  * var is unset — callers that need validation should use `getPublicEnv()`.
  */
 function readPublicEnv(): PublicEnv {
+  const raw = process.env.NEXT_PUBLIC_PWA_ENABLED;
+  const flag = raw === 'false' ? false : raw === 'true' ? true : true; // default enabled
+  const sentryEnabledRaw = process.env.NEXT_PUBLIC_SENTRY_ENABLED;
+  const sentryEnabled =
+    sentryEnabledRaw === 'false' ? false : sentryEnabledRaw === 'true' ? true : true;
   return {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL as string,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL as string,
+    NEXT_PUBLIC_PWA_ENABLED: flag,
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    NEXT_PUBLIC_SENTRY_ENABLED: sentryEnabled,
   };
 }
 
@@ -133,6 +160,32 @@ const serverEnvSchema = z.object({
   UPLOAD_STRATEGY: z.enum(['stream', 'presigned']).default('stream'),
   MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(52_428_800), // 50 MB
   SERVER_ACTIONS_BODY_LIMIT: z.string().default('50mb'),
+
+  // Phase 15 (ISD §15.K): Application environment for monitoring /
+  // rate-limit / secrets separation. One of 'development' | 'preview'
+  // | 'production'. Production build REFUSES to start without the
+  // required monitoring/limiter vars (or an explicit opt-out flag).
+  APP_ENV: z.enum(['development', 'preview', 'production']).optional().default('development'),
+
+  // Phase 15 (ISD §15.G, §15.B): Upstash rate limiter credentials.
+  // Both must be present for Upstash to be used; absence triggers the
+  // documented in-memory fallback (see lib/security/rate-limit.ts).
+  UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
+
+  // Phase 15 (ISD §15.G, §15.D): Sentry DSN. Server-side is the
+  // canonical DSN; the public one is optional (used by the browser
+  // bundle, see NEXT_PUBLIC_SENTRY_DSN above).
+  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_AUTH_TOKEN: z.string().min(1).optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
+  SENTRY_RELEASE: z.string().optional(),
+  // Allows opt-out of Sentry-in-prod in unusual situations (testing
+  // a deploy without monitoring). Defaults to 'true' (require).
+  SENTRY_REQUIRED: z
+    .union([z.literal('true'), z.literal('false')])
+    .optional()
+    .transform((v): boolean => (v === undefined ? true : v === 'true')),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema> & {
@@ -168,7 +221,33 @@ export function getServerEnv(): ServerEnv {
     UPLOAD_STRATEGY: process.env['UPLOAD_STRATEGY'],
     MAX_UPLOAD_BYTES: process.env['MAX_UPLOAD_BYTES'],
     SERVER_ACTIONS_BODY_LIMIT: process.env['SERVER_ACTIONS_BODY_LIMIT'],
+    APP_ENV: process.env['APP_ENV'],
+    UPSTASH_REDIS_REST_URL: process.env['UPSTASH_REDIS_REST_URL'],
+    UPSTASH_REDIS_REST_TOKEN: process.env['UPSTASH_REDIS_REST_TOKEN'],
+    SENTRY_DSN: process.env['SENTRY_DSN'],
+    SENTRY_AUTH_TOKEN: process.env['SENTRY_AUTH_TOKEN'],
+    SENTRY_TRACES_SAMPLE_RATE: process.env['SENTRY_TRACES_SAMPLE_RATE'],
+    SENTRY_RELEASE: process.env['SENTRY_RELEASE'],
+    SENTRY_REQUIRED: process.env['SENTRY_REQUIRED'],
   });
+
+  // Production gate (ISD §15.DD #5): require Upstash + Sentry in
+  // production, unless explicitly opted out.
+  // We do this AFTER the basic parse so that the user gets the
+  // full list of missing vars at once.
+  if (result.success && result.data.APP_ENV === 'production') {
+    const missing: string[] = [];
+    if (!result.data.UPSTASH_REDIS_REST_URL) missing.push('UPSTASH_REDIS_REST_URL');
+    if (!result.data.UPSTASH_REDIS_REST_TOKEN) missing.push('UPSTASH_REDIS_REST_TOKEN');
+    if (!result.data.SENTRY_DSN && result.data.SENTRY_REQUIRED) missing.push('SENTRY_DSN');
+    if (missing.length > 0) {
+      throw new Error(
+        `[env] PRODUCTION BUILD REQUIRES the following env vars: ${missing.join(', ')}. ` +
+          `Refusing to start without monitoring + rate limiting. ` +
+          `Set SENTRY_REQUIRED=false ONLY for temporary diagnostic deploys.`,
+      );
+    }
+  }
 
   if (!result.success) {
     const errors = result.error.errors

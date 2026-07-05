@@ -1,43 +1,86 @@
 'use client';
 
 /**
- * Fetch book blob — downloads the EPUB via the gated handler and creates an ephemeral objectURL.
+ * Fetch book blob — opens an EPUB for the reader (Phase 13 + Phase 9).
  *
- * ISD §9.F: This utility fetches the EPUB from GET /api/books/[id]/file (Phase 6),
- * converts it to a Blob, and creates an ephemeral objectURL for the engine to open.
- * The caller must call revoke() on unmount or error to prevent memory leaks.
+ * Phase 9 (ISD §9.F): downloads the EPUB from GET /api/books/[id]/file
+ * (Phase 6) and returns an ephemeral objectURL for the engine. The
+ * caller must call revoke() on unmount to prevent memory leaks.
  *
- * Security: The EPUB is fetched with credentials (cookie auth), held only as an
- * ephemeral Blob/objectURL, and revoked on unmount. No book bytes are persisted
- * to disk/IndexedDB in Phase 9 (Phase 10 adds progress persistence, not book bytes).
+ * Phase 13 (ISD §13.H): if the user has previously downloaded the book
+ * for offline reading, we **prefer the local copy** (faster, works
+ * offline). The network fallback is only used when no local copy
+ * exists.
+ *
+ * Security: The EPUB is fetched with credentials (cookie auth), held
+ * only as an ephemeral Blob/objectURL, and revoked on unmount. Book
+ * bytes in IndexedDB are per-user namespaced (Phase 13 scoped
+ * exception to the no-persist invariant, ISD §13.0.2 A).
  */
 
 import { ROUTES } from '@/lib/routes';
 import { ReaderLoadError } from '../engine/types';
+import { getOfflineBook, touchOfflineBook } from '@/features/offline/book-store';
 
-/**
- * Result of fetching a book blob.
- * The caller must call revoke() to release the objectURL when done.
- */
+/** Book load source — observable for tests / diagnostics. */
+export type BookSource = 'offline' | 'network';
+
 export interface BookBlobResult {
   /** The objectURL to pass to engine.open(). */
   objectURL: string;
   /** Call this to revoke the objectURL and free memory. */
   revoke: () => void;
+  /** Where the bytes came from. */
+  source: BookSource;
 }
 
 /**
  * Fetches the EPUB for a book and returns an objectURL + revoke function.
  *
+ * Resolution order:
+ *   1. Offline copy (IndexedDB, per-user) — preferred for already-downloaded
+ *      books. The reader opens instantly, no network round-trip.
+ *   2. Network: GET /api/books/[id]/file — fallback when no offline copy.
+ *
  * @param bookId - The book UUID
+ * @param userId - Current user id (from session claims, server-derived)
  * @param signal - Optional AbortSignal for cancellation (e.g., on unmount)
- * @returns A BookBlobResult with the objectURL and revoke function
- * @throws ReaderLoadError if the fetch fails (401/403/404/network)
+ * @returns A BookBlobResult with the objectURL, revoke function, and source
+ * @throws ReaderLoadError if neither path yields a usable blob
  */
 export async function fetchBookBlob(
   bookId: string,
+  userId: string | null,
   signal?: AbortSignal,
 ): Promise<BookBlobResult> {
+  // 1. Try the offline copy first.
+  if (userId) {
+    try {
+      const offline = await getOfflineBook(userId, bookId);
+      if (offline) {
+        // Bump lastReadAt (LRU bump, fire-and-forget — never blocks the
+        // open and never throws).
+        void touchOfflineBook(userId, bookId).catch(() => undefined);
+        const objectURL = URL.createObjectURL(offline.blob);
+        return {
+          objectURL,
+          source: 'offline',
+          revoke: () => {
+            try {
+              URL.revokeObjectURL(objectURL);
+            } catch {
+              // ignore — already revoked
+            }
+          },
+        };
+      }
+    } catch (err) {
+      // IDB unavailable or record corrupt — fall through to network.
+      console.warn('[fetchBookBlob] offline lookup failed, falling back to network:', err);
+    }
+  }
+
+  // 2. Network fallback.
   const url = ROUTES.READER(bookId).replace('/reader/', '/api/books/') + '/file';
 
   try {
@@ -47,7 +90,6 @@ export async function fetchBookBlob(
       signal,
     });
 
-    // Map HTTP status codes to typed errors
     if (!response.ok) {
       switch (response.status) {
         case 401:
@@ -64,40 +106,28 @@ export async function fetchBookBlob(
       }
     }
 
-    // Read the response as a Blob
     const blob = await response.blob();
-
-    // Validate that we got a non-empty blob
     if (blob.size === 0) {
       throw new ReaderLoadError('Book file is empty or corrupt', 'CORRUPT');
     }
 
-    // Create an ephemeral objectURL
     const objectURL = URL.createObjectURL(blob);
-
-    // Return the URL and a revoke function
     return {
       objectURL,
+      source: 'network',
       revoke: () => {
         try {
           URL.revokeObjectURL(objectURL);
         } catch {
-          // Ignore errors (e.g., if already revoked)
+          // ignore
         }
       },
     };
   } catch (err) {
-    // If it's already a ReaderLoadError, re-throw
-    if (err instanceof ReaderLoadError) {
-      throw err;
-    }
-
-    // Check if the fetch was aborted
+    if (err instanceof ReaderLoadError) throw err;
     if (err instanceof Error && err.name === 'AbortError') {
       throw new ReaderLoadError('Fetch aborted', 'NETWORK');
     }
-
-    // Network error or other failure
     throw new ReaderLoadError(
       err instanceof Error ? err.message : 'Failed to fetch book',
       'NETWORK',

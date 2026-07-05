@@ -37,9 +37,4 @@ export { fallbackExtractor } from './fallback-extractor';
 export { streamZipExtractor } from './stream-zip-extractor';
 
 // Re-export error types for consumers (upload action maps them to ActionResult)
-export {
-  EpubError,
-  EpubInvalidError,
-  EpubEncryptedError,
-  EpubParseError,
-} from './errors';
+export { EpubError, EpubInvalidError, EpubEncryptedError, EpubParseError } from './errors';

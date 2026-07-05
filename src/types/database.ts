@@ -217,6 +217,36 @@ export type Database = {
           },
         ];
       };
+      // Phase 12 (migration 0012): cloud-synced reader preferences.
+      user_preferences: {
+        Row: {
+          user_id: string;
+          preferences: Json;
+          version: number;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          preferences?: Json;
+          version?: number;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          preferences?: Json;
+          version?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'user_preferences_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: true;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {

@@ -58,3 +58,17 @@ export interface ReadingProgress {
   percentage: number;
   updated_at: string;
 }
+
+/**
+ * Phase 12 (migration 0012): cloud-synced reader preferences.
+ * The row is 1:1 with auth.users. The `preferences` jsonb blob holds the
+ * versioned `Preferences` envelope (see @/features/preferences/schema).
+ *
+ * LWW by `updated_at` for cross-device sync.
+ */
+export interface UserPreferences {
+  user_id: string;
+  preferences: import('./database').Json;
+  version: number;
+  updated_at: string;
+}

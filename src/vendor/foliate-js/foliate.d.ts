@@ -140,7 +140,10 @@ declare module '@/vendor/foliate-js/foliate-view.js' {
     clearSearch(): void;
 
     // ---- annotations ----
-    addAnnotation(annotation: Annotation, remove?: boolean): Promise<{ index: number; label: string } | undefined>;
+    addAnnotation(
+      annotation: Annotation,
+      remove?: boolean,
+    ): Promise<{ index: number; label: string } | undefined>;
     deleteAnnotation(annotation: Annotation): Promise<{ index: number; label: string } | undefined>;
     showAnnotation(annotation: Annotation): Promise<ResolvedTarget | undefined>;
 
@@ -154,7 +157,10 @@ declare module '@/vendor/foliate-js/foliate-view.js' {
     /** Return the fraction at the start of every section (for sliders). */
     getSectionFractions(): number[];
     /** Get current TOC item + page-list item for an index/range. */
-    getProgressOf(index: number, range: Range): {
+    getProgressOf(
+      index: number,
+      range: Range,
+    ): {
       tocItem?: TocItem | null;
       pageItem?: TocItem | null;
     };
@@ -162,7 +168,10 @@ declare module '@/vendor/foliate-js/foliate-view.js' {
     getTOCItemOf(target: string | number): Promise<TocItem | undefined>;
 
     // ---- TTS / media overlay ----
-    initTTS(granularity?: 'word' | 'grapheme', highlight?: (range: Range) => unknown): Promise<void>;
+    initTTS(
+      granularity?: 'word' | 'grapheme',
+      highlight?: (range: Range) => unknown,
+    ): Promise<void>;
     startMediaOverlay(): Promise<void>;
 
     // ---- events ----
@@ -381,7 +390,11 @@ declare module '@/vendor/foliate-js/paginator.js' {
     /** Pass the resolved book; sets up directions, sections, transformTarget. */
     open(book: import('./foliate-view.js').Book): void;
     /** Navigate to a target. */
-    goTo(target: { index: number; anchor?: number | Range | Element; select?: boolean }): Promise<void>;
+    goTo(target: {
+      index: number;
+      anchor?: number | Range | Element;
+      select?: boolean;
+    }): Promise<void>;
     /** Go to the previous page. */
     prev(distance?: number): Promise<void>;
     /** Go to the next page. */
@@ -445,7 +458,11 @@ declare module '@/vendor/foliate-js/fixed-layout.js' {
    */
   export class FixedLayout extends HTMLElement {
     open(book: import('./foliate-view.js').Book): void;
-    goTo(target: { index: number; anchor?: number | Range | Element; select?: boolean }): Promise<void>;
+    goTo(target: {
+      index: number;
+      anchor?: number | Range | Element;
+      select?: boolean;
+    }): Promise<void>;
     prev(distance?: number): Promise<void>;
     next(distance?: number): Promise<void>;
     getContents(): Array<{ index: number; overlayer?: unknown; doc?: Document }>;
@@ -472,7 +489,12 @@ declare module '@/vendor/foliate-js/overlayer.js' {
   export class Overlayer {
     /** The `<svg>` element to mount into the iframe. */
     readonly element: SVGSVGElement;
-    add(key: string, range: Range | ((root: Document) => Range), draw: (rects: DOMRect[], options?: unknown) => SVGElement, options?: unknown): void;
+    add(
+      key: string,
+      range: Range | ((root: Document) => Range),
+      draw: (rects: DOMRect[], options?: unknown) => SVGElement,
+      options?: unknown,
+    ): void;
     remove(key: string): void;
     redraw(): void;
     hitTest(point: { x: number; y: number }): [string, Range] | [];
@@ -482,7 +504,10 @@ declare module '@/vendor/foliate-js/overlayer.js' {
     /** Built-in drawer: filled highlight. */
     static highlight(rects: DOMRect[], options?: { color?: string }): SVGElement;
     /** Built-in drawer: underline. */
-    static underline(rects: DOMRect[], options?: { color?: string; width?: number; writingMode?: string }): SVGElement;
+    static underline(
+      rects: DOMRect[],
+      options?: { color?: string; width?: number; writingMode?: string },
+    ): SVGElement;
   }
 }
 
@@ -558,7 +583,11 @@ declare module '@/vendor/foliate-js/progress.js' {
   import type { TocItem } from './foliate-view.js';
 
   export class SectionProgress {
-    constructor(sections: Array<{ size: number; linear: string }>, sizePerLoc: number, sizePerTimeUnit: number);
+    constructor(
+      sections: Array<{ size: number; linear: string }>,
+      sizePerLoc: number,
+      sizePerTimeUnit: number,
+    );
     sizes: number[];
     sizePerLoc: number;
     sizePerTimeUnit: number;
@@ -601,7 +630,10 @@ declare module '@/vendor/foliate-js/search.js' {
     matchWholeWords?: boolean;
     acceptNode?: (node: Node) => number;
   }
-  export type Matcher = (doc: Document, query: string) => Iterable<{ range: Range; excerpt: { pre: string; match: string; post: string } }>;
+  export type Matcher = (
+    doc: Document,
+    query: string,
+  ) => Iterable<{ range: Range; excerpt: { pre: string; match: string; post: string } }>;
   export function searchMatcher(
     textWalker: typeof import('./text-walker.js').textWalker,
     opts: SearchOpts,
@@ -622,7 +654,12 @@ declare module '@/vendor/foliate-js/text-walker.js' {
     root: Document | Range,
     func: (
       strs: string[],
-      makeRange: (startIndex: number, startOffset: number, endIndex: number, endOffset: number) => Range,
+      makeRange: (
+        startIndex: number,
+        startOffset: number,
+        endIndex: number,
+        endOffset: number,
+      ) => Range,
     ) => Iterable<{ range: Range; excerpt: { pre: string; match: string; post: string } }>,
     filterFunc?: (node: Node) => number,
   ): Generator<{ range: Range; excerpt: { pre: string; match: string; post: string } }>;

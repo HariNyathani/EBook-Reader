@@ -173,8 +173,6 @@ describe('persistProgress — conditional upsert (ISD §10.F)', () => {
       selectError: { code: 'XX000', message: 'connection reset' },
     });
 
-    await expect(
-      persistProgress('u1', 'b1', 'cfi', 10, NEWER),
-    ).rejects.toThrow(/connection reset/);
+    await expect(persistProgress('u1', 'b1', 'cfi', 10, NEWER)).rejects.toThrow(/connection reset/);
   });
 });

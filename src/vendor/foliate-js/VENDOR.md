@@ -72,24 +72,24 @@ cp vendor/fflate.js        src/vendor/foliate-js/vendor/fflate.js
 
 The following modules are vendored (runtime, all MIT-licensed):
 
-| File | Role |
-| --- | --- |
-| `foliate-view.js` | The `<foliate-view>` custom element (renamed from upstream `view.js`). Imports the rest of the modules and is the single entry point registered as a custom element. |
-| `epub.js` | EPUB parser/loader implementing the "book" interface (sections, manifest, spine, OPF, NCX, nav). |
-| `epubcfi.js` | EPUB CFI (Canonical Fragment Identifier) parser and serializer. |
-| `paginator.js` | The `<foliate-paginator>` renderer for reflowable books (CSS multi-column layout). Implements the real `next()`, `prev()`, `goTo()`, `setStyles()` API. |
-| `fixed-layout.js` | The `<foliate-fxl>` renderer for pre-paginated EPUBs (view.js dynamic-imports it when the book's `rendition.layout === "pre-paginated"`). |
-| `overlayer.js` | SVG-based overlay layer used for highlights, search-result drawing, and annotations. |
-| `progress.js` | `SectionProgress` and `TOCProgress` helpers for computing reading fraction / current TOC item. |
-| `search.js` | Search matchers and excerpt generation (driven by `text-walker.js`). |
-| `text-walker.js` | Generic DOM `TreeWalker` wrapper that feeds the search module. |
-| `tts.js` | TTS (text-to-speech) helper, dynamic-imported by view.js. |
-| `footnotes.js` | Footnote/pop-up helpers (EPUB endnotes, popups, etc.). |
-| `uri-template.js` | RFC 6570 URI Template parser (used for OPDS and similar). |
-| `quote-image.js` | Helper used by some book formats to draw quote marks. |
-| `LICENSE` | Upstream MIT license text. |
-| `vendor/zip.js` | Minified bundle of `@zip.js/zip.js` (zip reading/writing). |
-| `vendor/fflate.js` | Minified bundle of `fflate` (used by `mobi.js` for KF8 font decompression). |
+| File               | Role                                                                                                                                                                 |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `foliate-view.js`  | The `<foliate-view>` custom element (renamed from upstream `view.js`). Imports the rest of the modules and is the single entry point registered as a custom element. |
+| `epub.js`          | EPUB parser/loader implementing the "book" interface (sections, manifest, spine, OPF, NCX, nav).                                                                     |
+| `epubcfi.js`       | EPUB CFI (Canonical Fragment Identifier) parser and serializer.                                                                                                      |
+| `paginator.js`     | The `<foliate-paginator>` renderer for reflowable books (CSS multi-column layout). Implements the real `next()`, `prev()`, `goTo()`, `setStyles()` API.              |
+| `fixed-layout.js`  | The `<foliate-fxl>` renderer for pre-paginated EPUBs (view.js dynamic-imports it when the book's `rendition.layout === "pre-paginated"`).                            |
+| `overlayer.js`     | SVG-based overlay layer used for highlights, search-result drawing, and annotations.                                                                                 |
+| `progress.js`      | `SectionProgress` and `TOCProgress` helpers for computing reading fraction / current TOC item.                                                                       |
+| `search.js`        | Search matchers and excerpt generation (driven by `text-walker.js`).                                                                                                 |
+| `text-walker.js`   | Generic DOM `TreeWalker` wrapper that feeds the search module.                                                                                                       |
+| `tts.js`           | TTS (text-to-speech) helper, dynamic-imported by view.js.                                                                                                            |
+| `footnotes.js`     | Footnote/pop-up helpers (EPUB endnotes, popups, etc.).                                                                                                               |
+| `uri-template.js`  | RFC 6570 URI Template parser (used for OPDS and similar).                                                                                                            |
+| `quote-image.js`   | Helper used by some book formats to draw quote marks.                                                                                                                |
+| `LICENSE`          | Upstream MIT license text.                                                                                                                                           |
+| `vendor/zip.js`    | Minified bundle of `@zip.js/zip.js` (zip reading/writing).                                                                                                           |
+| `vendor/fflate.js` | Minified bundle of `fflate` (used by `mobi.js` for KF8 font decompression).                                                                                          |
 
 ## Files Excluded
 

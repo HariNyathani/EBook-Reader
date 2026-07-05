@@ -18,3 +18,42 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+/* ----------------------------------------------------------------------------
+ * Phase 11 reader UI animations
+ *
+ * Animations are scoped to a few named keyframes referenced by the
+ * reader components. They are short (140-200ms) and opt out of the
+ * `prefers-reduced-motion` media query — the components conditionally
+ * apply these classes based on `usePrefersReducedMotion`, so users who
+ * request reduced motion never see them.
+ * ------------------------------------------------------------------------- */
+
+@keyframes toc-drawer-slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes search-panel-slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes popover-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

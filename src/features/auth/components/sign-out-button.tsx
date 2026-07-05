@@ -1,21 +1,32 @@
 'use client';
 
 import { signOutAction } from '@/features/auth/actions';
+import { performSignOut } from '@/features/offline/use-sign-out-cleanup';
 
 interface SignOutButtonProps {
   className?: string;
 }
 
 /**
- * Sign-out button — calls signOutAction on click.
- * Client component because it drives a user interaction.
- * The action redirects to /login after clearing the session cookie.
+ * Sign-out button — performs client-side cleanup (offline books +
+ * progress queue) before calling the Server Action that clears the
+ * Supabase session cookie and redirects to /login.
+ *
+ * The split is necessary because Server Actions cannot access
+ * IndexedDB (ISD §13.H, §13.Z). The `performSignOut` helper:
+ *   1. Dispatches the `auth:sign-out` event (the useSignOutCleanup
+ *      hook in (app)/layout listens and runs the async cleanup).
+ *   2. Awaits the Server Action (which clears the cookie + redirects).
+ *
+ * If the Server Action fails, the next mount of the (app) layout
+ * will see an unauthenticated user and the middleware will redirect
+ * to /login — the cleanup either already happened or runs lazily.
  */
 export function SignOutButton({ className }: SignOutButtonProps) {
   return (
     <form
       action={async () => {
-        await signOutAction();
+        await performSignOut(signOutAction);
       }}
     >
       <button

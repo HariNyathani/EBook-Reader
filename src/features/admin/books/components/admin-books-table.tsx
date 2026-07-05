@@ -15,16 +15,13 @@ interface AdminBooksTableProps {
 function DeleteBookCell({ bookId }: { bookId: string }) {
   const showToast = useUiStore((s) => s.showToast);
 
-  const [state, formAction, pending] = useActionState(
-    async () => {
-      // Confirm deletion
-      if (!confirm('Are you sure you want to delete this book? This cannot be undone.')) {
-        return null;
-      }
-      return deleteBookAction({ bookId });
-    },
-    null,
-  );
+  const [state, formAction, pending] = useActionState(async () => {
+    // Confirm deletion
+    if (!confirm('Are you sure you want to delete this book? This cannot be undone.')) {
+      return null;
+    }
+    return deleteBookAction({ bookId });
+  }, null);
 
   useEffect(() => {
     if (state?.status === 'success') {
@@ -39,7 +36,7 @@ function DeleteBookCell({ bookId }: { bookId: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded px-3 py-1 text-xs font-semibold text-white shadow-sm transition-colors bg-red-600 hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+        className="rounded bg-red-600 px-3 py-1 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
       >
         {pending ? '…' : 'Delete'}
       </button>

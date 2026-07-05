@@ -5,6 +5,7 @@
   "display": "standalone",
   "start_url": "/dashboard",
   "scope": "/",
+  "id": "/dashboard",
   "orientation": "any",
   "theme_color": "#1a1f36",
   "background_color": "#ffffff",
@@ -27,6 +28,20 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Library",
+      "url": "/dashboard",
+      "description": "Open your library and continue reading"
+    },
+    {
+      "name": "Settings",
+      "short_name": "Settings",
+      "url": "/settings",
+      "description": "Adjust reader preferences and manage offline downloads"
     }
   ]
 }

@@ -13,11 +13,7 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 
 // Mock server-only to allow server-only modules in test environment
 vi.mock('server-only', () => ({}));
-import {
-  createTestEpub,
-  createMinimalPng,
-  createMinimalJpeg,
-} from '../helpers/epub-factory';
+import { createTestEpub, createMinimalPng, createMinimalJpeg } from '../helpers/epub-factory';
 import {
   streamZipExtractor,
   EpubInvalidError,

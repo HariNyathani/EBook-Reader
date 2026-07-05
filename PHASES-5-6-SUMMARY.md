@@ -19,6 +19,7 @@
 ### Files Created
 
 #### Core Admin Features
+
 - `src/features/admin/constants.ts` - Admin page size and user filter constants
 - `src/features/admin/queries.ts` - Admin statistics and user listing queries
 - `src/features/admin/components/stat-card.tsx` - Statistics display component
@@ -26,6 +27,7 @@
 - `src/features/admin/components/user-row-actions.tsx` - Client component for approve/admin toggle actions
 
 #### Admin Pages
+
 - `src/app/admin/users/page.tsx` - User management page with search, filters, pagination
 - `src/app/admin/users/loading.tsx` - Loading skeleton
 
@@ -42,16 +44,19 @@
 ### Key Features
 
 #### Self-Protection Guards
+
 - Admin cannot revoke their own approval (`SELF_DEMOTE`)
 - Admin cannot revoke their own admin rights (`SELF_DEMOTE`)
 - System cannot drop to zero admins (`LAST_ADMIN`)
 
 #### URL-Driven State
+
 - Search: `?query=email@example.com`
 - Filter: `?status=pending|approved|admin|all`
 - Pagination: `?page=2`
 
 #### Three-Layer Authorization
+
 1. Middleware (edge) - blocks non-admin requests
 2. Layout guard (`requireAdmin`) - server-render protection
 3. Server Action guard (`requireAdmin`) - action-level verification
@@ -74,11 +79,13 @@
 ### Files Created
 
 #### EPUB Metadata Seam
+
 - `src/lib/epub/types.ts` - `EpubMetadata`, `MetadataExtractor`, `ExtractInput` interfaces
 - `src/lib/epub/fallback-extractor.ts` - Fallback implementation (filename→title, form→author, no cover)
 - `src/lib/epub/index.ts` - `activeExtractor` binding (single swap point for Phase 7)
 
 #### Upload Pipeline
+
 - `src/features/admin/upload/constants.ts` - `MAX_UPLOAD_BYTES`, `ACCEPTED_MIME`, `ACCEPTED_EXT`
 - `src/features/admin/upload/schemas.ts` - `uploadMetaSchema`, `deleteBookSchema`
 - `src/features/admin/upload/actions.ts` - `uploadBookAction` with full pipeline and rollback
@@ -86,14 +93,17 @@
 - `src/features/admin/upload/components/upload-form.tsx` - Upload form with title/author overrides
 
 #### Book Management
+
 - `src/features/admin/books/queries.ts` - `listBooks` query for admin
 - `src/features/admin/books/components/admin-books-table.tsx` - Books table with delete actions
 
 #### Secure Delivery Route Handlers
+
 - `src/app/api/books/[id]/file/route.ts` - EPUB streaming with auth+approval gate
 - `src/app/api/covers/[id]/route.ts` - Cover image streaming with auth+approval gate
 
 #### Admin Pages
+
 - `src/app/admin/books/page.tsx` - Admin book listing page
 - `src/app/admin/books/loading.tsx` - Loading skeleton
 
@@ -135,12 +145,14 @@
 ### Secure Delivery Headers
 
 **EPUB Delivery** (`/api/books/[id]/file`):
+
 - `Content-Type: application/epub+zip`
 - `Content-Disposition: inline`
 - `Cache-Control: no-store`
 - `Content-Length: <bytes>` (when known)
 
 **Cover Delivery** (`/api/covers/[id]`):
+
 - `Content-Type: image/jpeg`
 - `Cache-Control: private, max-age=3600`
 - `Content-Length: <bytes>` (when known)
@@ -217,6 +229,7 @@ The `activeExtractor` seam is in place at `src/lib/epub/index.ts`. Phase 7 will:
 5. Cover upload branch in `uploadBookAction` will automatically activate
 
 **No changes required to:**
+
 - `uploadBookAction` signature
 - `books` table schema
 - Delivery route handlers
@@ -234,13 +247,14 @@ The `activeExtractor` seam is in place at `src/lib/epub/index.ts`. Phase 7 will:
 ✅ Delivery handlers enforce approval independently of RLS  
 ✅ `MetadataExtractor` seam in place with fallback  
 ✅ Body-size blocker mitigated via `serverActions.bodySizeLimit`  
-✅ Global DoD gate satisfied  
+✅ Global DoD gate satisfied
 
 ---
 
 ## Files Summary
 
 ### Phase 5: 11 files created, 7 files modified
+
 ### Phase 6: 14 files created, 9 files modified
 
 **Total: 25 files created, 16 files modified**

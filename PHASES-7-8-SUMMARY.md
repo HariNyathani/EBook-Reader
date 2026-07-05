@@ -5,6 +5,7 @@
 ### Implemented Files
 
 **New Files Created:**
+
 - `src/lib/epub/errors.ts` - Error hierarchy (EpubError, EpubInvalidError, EpubEncryptedError, EpubParseError)
 - `src/lib/epub/validate.ts` - EPUB structural validation (mimetype, container.xml, encryption.xml detection)
 - `src/lib/epub/opf.ts` - OPF/container XML parsing with XXE-safe fast-xml-parser configuration
@@ -12,6 +13,7 @@
 - `src/lib/epub/stream-zip-extractor.ts` - Real metadata extractor using node-stream-zip
 
 **Modified Files:**
+
 - `src/lib/epub/index.ts` - Swapped `activeExtractor` from `fallbackExtractor` to `streamZipExtractor`
 - `src/features/admin/upload/actions.ts` - Added EpubError type mapping to INVALID_FILE
 - `src/features/admin/upload/components/upload-form.tsx` - Updated UI labels to indicate optional overrides
@@ -48,6 +50,7 @@
 ### Implemented Files
 
 **New Files Created:**
+
 - `src/features/library/cache.ts` - Cache tag helpers (LIBRARY_TAG, userLibraryTag, progressTag)
 - `src/features/library/queries.ts` - Cached data layer using `unstable_cache` with per-user isolation
 - `src/features/library/actions.ts` - Server actions for add/remove library (idempotent, RLS-scoped)
@@ -56,6 +59,7 @@
 - `src/types/library.ts` - View models (BookWithProgress, CatalogView, MyLibraryView)
 
 **UI Components:**
+
 - `src/features/library/components/progress-badge.tsx` - Progress percentage badge
 - `src/features/library/components/empty-state.tsx` - Reusable empty state component
 - `src/features/library/components/catalog-toolbar.tsx` - Search/sort controls (URL-driven)
@@ -63,12 +67,14 @@
 - `src/features/library/components/book-card-actions.tsx` - Add/remove toggle with optimistic UI
 
 **Pages:**
+
 - `src/app/(app)/dashboard/page.tsx` - Dashboard with "My Library" + "Browse Catalog" sections
 - `src/app/(app)/dashboard/loading.tsx` - Grid skeleton loader
 - `src/app/(app)/dashboard/books/[id]/page.tsx` - Book details page with cover, metadata, progress
 - `src/app/(app)/dashboard/books/[id]/loading.tsx` - Details page skeleton
 
 **Modified Files:**
+
 - `src/lib/routes.ts` - Added BOOK_DETAILS route
 
 ### Key Features
@@ -117,6 +123,7 @@
 ## Security Considerations
 
 ### Phase 7 Security
+
 - ✅ XXE-safe XML parsing (fast-xml-parser with processEntities: false)
 - ✅ Path traversal defense (validateZipEntryPath rejects "..")
 - ✅ Cover re-encoding strips malicious payloads
@@ -124,6 +131,7 @@
 - ✅ Zip handles always closed (no FD leaks)
 
 ### Phase 8 Security
+
 - ✅ Per-user cache isolation (userId in cache key and tag)
 - ✅ RLS-scoped queries (userId from session claims, not client input)
 - ✅ Approval enforced at three layers (middleware, requireApproved, RLS)

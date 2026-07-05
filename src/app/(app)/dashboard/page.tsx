@@ -1,5 +1,10 @@
 import { requireApproved } from '@/features/auth/session';
-import { getCatalog, getMyLibrary, getProgressMap, getContinueReading } from '@/features/library/queries';
+import {
+  getCatalog,
+  getMyLibrary,
+  getProgressMap,
+  getContinueReading,
+} from '@/features/library/queries';
 import { catalogParamsSchema } from '@/features/library/schemas';
 import { LibraryGrid } from '@/features/library/components/library-grid';
 import { CatalogToolbar } from '@/features/library/components/catalog-toolbar';
@@ -69,7 +74,7 @@ export default async function DashboardPage({
       {myLibraryWithProgress.length > 0 && (
         <section>
           <h2 className="mb-4 text-xl font-semibold text-gray-800">My Library</h2>
-          <LibraryGrid books={myLibraryWithProgress} />
+          <LibraryGrid books={myLibraryWithProgress} userId={claims.userId} />
         </section>
       )}
 
@@ -103,7 +108,7 @@ export default async function DashboardPage({
         ) : (
           <>
             <div className="mt-6">
-              <LibraryGrid books={catalogWithProgress} />
+              <LibraryGrid books={catalogWithProgress} userId={claims.userId} />
             </div>
 
             {/* Pagination */}

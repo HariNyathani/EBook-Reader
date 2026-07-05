@@ -21,7 +21,7 @@ function createSafeXmlParser(): XMLParser {
   return new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: '@_',
-    processEntities: false,    // ISD §7.Z — disable entity processing (XXE defense)
+    processEntities: false, // ISD §7.Z — disable entity processing (XXE defense)
     parseTagValue: true,
     trimValues: true,
     // Namespace handling: we need to match dc:title, dc:creator etc.
@@ -88,7 +88,8 @@ export function parseContainer(xml: string): ContainerInfo {
     throw new EpubParseError('container.xml missing <rootfiles> element');
   }
 
-  const rootfile = rootfiles['rootfile'] as Record<string, unknown> | Record<string, unknown>[] | undefined;
+  const rootfile = rootfiles['rootfile'] as
+    Record<string, unknown> | Record<string, unknown>[] | undefined;
   if (!rootfile) {
     throw new EpubParseError('container.xml missing <rootfile> element');
   }
@@ -239,15 +240,11 @@ export function parseOpf(xml: string, opfPath: string): OpfInfo {
           const metasArray = Array.isArray(metaItems) ? metaItems : [metaItems];
           for (const m of metasArray) {
             const metaObj = m as Record<string, unknown>;
-            if (
-              metaObj['@_name'] === 'cover' &&
-              typeof metaObj['@_content'] === 'string'
-            ) {
+            if (metaObj['@_name'] === 'cover' && typeof metaObj['@_content'] === 'string') {
               const coverId = metaObj['@_content'] as string;
               // Find manifest item with matching id
               const matchItem = itemsArray.find(
-                (item) =>
-                  (item as Record<string, unknown>)['@_id'] === coverId,
+                (item) => (item as Record<string, unknown>)['@_id'] === coverId,
               ) as Record<string, unknown> | undefined;
               if (matchItem && typeof matchItem['@_href'] === 'string') {
                 coverHref = matchItem['@_href'] as string;
@@ -261,8 +258,7 @@ export function parseOpf(xml: string, opfPath: string): OpfInfo {
       // Strategy 2: EPUB3 manifest item with properties="cover-image"
       if (!coverHref) {
         const coverItem = itemsArray.find(
-          (item) =>
-            (item as Record<string, unknown>)['@_properties'] === 'cover-image',
+          (item) => (item as Record<string, unknown>)['@_properties'] === 'cover-image',
         ) as Record<string, unknown> | undefined;
         if (coverItem && typeof coverItem['@_href'] === 'string') {
           coverHref = coverItem['@_href'] as string;

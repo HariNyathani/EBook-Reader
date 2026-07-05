@@ -41,6 +41,7 @@ import {
   flushPending,
   hasPending,
   removeProgress,
+  clearAllProgress,
   type PendingProgressEntry,
 } from '@/features/reader/progress/offline-queue';
 
@@ -148,6 +149,45 @@ describe('offline-queue — flush semantics (ISD Decision G)', () => {
   it('removeProgress deletes the entry entirely', async () => {
     await queueProgress('b1', { cfi: 'c1', percentage: 10, updatedAt: 't1' });
     await removeProgress('b1');
+    expect(read('b1')).toBeUndefined();
+  });
+});
+
+describe('offline-queue — clearAllProgress (shared-device isolation, ISD §13.Z)', () => {
+  beforeEach(() => {
+    store.clear();
+    vi.clearAllMocks();
+  });
+
+  it('purges every queued entry (dirty AND clean) so nothing leaks to the next user', async () => {
+    // Simulate leftovers from a signed-out user: one still-dirty (never
+    // flushed because they were offline) and one already-synced.
+    await queueProgress('b1', { cfi: 'c1', percentage: 10, updatedAt: 't1' });
+    store.set('progress:b2', {
+      bookId: 'b2',
+      cfi: 'c2',
+      percentage: 50,
+      updatedAt: 't2',
+      dirty: false,
+    } satisfies PendingProgressEntry);
+
+    const removed = await clearAllProgress();
+
+    expect(removed).toBe(2);
+    expect(read('b1')).toBeUndefined();
+    expect(read('b2')).toBeUndefined();
+    expect(await hasPending()).toBe(false);
+  });
+
+  it('leaves unrelated (non-progress) IndexedDB keys untouched', async () => {
+    // An offline-book blob for some user must survive — clearAllProgress
+    // is scoped to the progress queue only (clearUser handles book bytes).
+    store.set('offline-book:user-a:b9', { blob: 'x' });
+    await queueProgress('b1', { cfi: 'c1', percentage: 10, updatedAt: 't1' });
+
+    await clearAllProgress();
+
+    expect(store.has('offline-book:user-a:b9')).toBe(true);
     expect(read('b1')).toBeUndefined();
   });
 });

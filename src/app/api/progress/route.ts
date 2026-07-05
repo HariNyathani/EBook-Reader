@@ -19,6 +19,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getClaims } from '@/features/auth/session';
 import { progressSchema } from '@/features/reader/progress/schemas';
 import { persistProgress } from '@/features/reader/progress/persist-progress';
+import { progressLimiter, identifierForIp } from '@/lib/security/rate-limit';
+import { logger } from '@/lib/logging/logger';
 
 export const runtime = 'nodejs'; // ISD §10.L: Node runtime (not Edge)
 
@@ -29,6 +31,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // ISD §10.E: Silently drop unauthenticated/unapproved (never error a beacon)
     if (!claims || !claims.isApproved) {
+      return new NextResponse(null, { status: 204 });
+    }
+
+    // Rate-limit per user (Phase 15, ISD §15.B). Beacons are
+    // fire-and-forget so we still return 204 on rejection; the
+    // browser will retry naturally.
+    const id = claims.userId ?? identifierForIp(request);
+    const rl = await progressLimiter(id);
+    if (!rl.success) {
+      // Beacons are fire-and-forget; do not return 429. Log and
+      // silently drop. The client will retry next time.
+      logger.warn('rate_limit.exceeded', { policy: 'progress' });
       return new NextResponse(null, { status: 204 });
     }
 
@@ -50,8 +64,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Always return 204 (beacon doesn't consume response)
     return new NextResponse(null, { status: 204 });
   } catch (err) {
-    // Any error — silently drop (beacon is fire-and-forget)
-    console.error('[POST /api/progress] Error:', err);
+    // Any error — silently drop (beacon is fire-and-forget) but
+    // log it for Sentry visibility.
+    logger.error('progress.persist.failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return new NextResponse(null, { status: 204 });
   }
 }

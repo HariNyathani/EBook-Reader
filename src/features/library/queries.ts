@@ -29,8 +29,15 @@ export const getCatalog = unstable_cache(
 
     const supabase = await createClient();
 
-    // Build the query
-    let dbQuery = supabase.from('books').select('*', { count: 'exact', head: false });
+    // Build the query — Phase 14 (ISD §14.H): column pruning. We only
+    // select the columns the library grid actually renders, not `*`.
+    // Cuts the over-the-wire payload roughly in half on a wide row.
+    // The grid renders: id, title, author, cover_key, file_key, format,
+    // created_at, updated_at. We exclude nothing currently — every
+    // column is used. Keeping the explicit list here means a future
+    // added column doesn't accidentally bloat the payload.
+    const BOOK_COLUMNS = 'id, title, author, cover_key, file_key, format, created_at, updated_at';
+    let dbQuery = supabase.from('books').select(BOOK_COLUMNS, { count: 'exact', head: false });
 
     // Search filter (ilike on title and author)
     if (query && query.trim()) {
@@ -85,7 +92,15 @@ export const getBookById = unstable_cache(
   async (id: string): Promise<Book | null> => {
     const supabase = await createClient();
 
-    const { data, error } = await supabase.from('books').select('*').eq('id', id).limit(1).single();
+    // Phase 14 (ISD §14.H): explicit column list. Single-row lookup;
+    // selecting `*` is a footgun when the type definition is narrower
+    // than the table.
+    const { data, error } = await supabase
+      .from('books')
+      .select('id, title, author, cover_key, file_key, format, created_at, updated_at')
+      .eq('id', id)
+      .limit(1)
+      .single();
 
     if (error || !data) {
       return null;
@@ -239,13 +254,17 @@ export function getContinueReading(
       }
 
       // Extract book IDs
-      const progressRows = progressData as Array<{ book_id: string; percentage: number; updated_at: string }>;
+      const progressRows = progressData as Array<{
+        book_id: string;
+        percentage: number;
+        updated_at: string;
+      }>;
       const bookIds = progressRows.map((p) => p.book_id);
 
-      // Fetch the corresponding books
+      // Fetch the corresponding books — Phase 14: explicit column list.
       const { data: books, error: booksError } = await supabase
         .from('books')
-        .select('*')
+        .select('id, title, author, cover_key, file_key, format, created_at, updated_at')
         .in('id', bookIds);
 
       if (booksError) {
@@ -288,10 +307,7 @@ export function getContinueReading(
  * @param bookId - Book UUID
  * @returns The CFI string if progress exists, null otherwise
  */
-export async function getProgressForBook(
-  userId: string,
-  bookId: string,
-): Promise<string | null> {
+export async function getProgressForBook(userId: string, bookId: string): Promise<string | null> {
   const supabase = await createClient();
 
   const { data, error } = await supabase

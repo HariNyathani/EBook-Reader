@@ -5,6 +5,7 @@ This module implements the approved user's reading dashboard and library managem
 ## Overview
 
 The library feature provides:
+
 - **Catalog browsing** with search, sort, and pagination
 - **Personal library** ("My Library") for users to save books
 - **Reading progress display** (percentage from `reading_progress` table)
@@ -57,6 +58,7 @@ Both actions use the request-scoped server client (RLS enforces ownership).
 ### Cache Strategy (ISD §8.L, §8.Z)
 
 Cache tags:
+
 - `library` — Shared catalog cache (invalidated by admin upload/delete)
 - `library:{userId}` — Per-user library cache (ISD §8.Z)
 - `progress:{userId}` — Per-user progress cache (ISD §8.Z)
@@ -64,6 +66,7 @@ Cache tags:
 **Critical**: Per-user caches **must** include `userId` in both cache key and tag to prevent cross-user data leakage.
 
 Invalidation:
+
 - Admin upload/delete calls `revalidateTag('library')` (Phase 6)
 - Library add/remove calls `revalidateTag(userLibraryTag(userId))`
 - Progress writes (reader phase) will call `revalidateTag(progressTag(userId))`
@@ -104,6 +107,7 @@ Invalidation:
 #### Dashboard (`/dashboard`)
 
 Server Component that:
+
 1. Calls `requireApproved()`
 2. Fetches catalog, user library, and progress map in parallel
 3. Composes `BookWithProgress` view models
@@ -116,6 +120,7 @@ URL-driven search/sort/pagination (no client state).
 #### Book Details (`/dashboard/books/[id]`)
 
 Server Component that:
+
 1. Calls `requireApproved()`
 2. Fetches book, user library, and progress map
 3. Shows large cover, metadata, progress
@@ -125,6 +130,7 @@ Server Component that:
 ### Routes
 
 Added to `src/lib/routes.ts`:
+
 - `BOOK_DETAILS: (bookId: string) => /dashboard/books/${bookId}`
 
 ### Loading States
@@ -150,6 +156,7 @@ Added to `src/lib/routes.ts`:
 ## Testing
 
 Unit tests in `tests/unit/library.test.ts` cover:
+
 - Schema validation (libraryMutationSchema, catalogParamsSchema)
 - Cache tag helpers (per-user isolation)
 - Constants and configuration

@@ -15,26 +15,23 @@ export function UploadZone({ onFileSelect }: UploadZoneProps) {
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const validate = useCallback(
-    (file: File): string | null => {
-      const filename = file.name.toLowerCase();
-      const ext = filename.substring(filename.lastIndexOf('.'));
+  const validate = useCallback((file: File): string | null => {
+    const filename = file.name.toLowerCase();
+    const ext = filename.substring(filename.lastIndexOf('.'));
 
-      if (!ACCEPTED_EXT.includes(ext as (typeof ACCEPTED_EXT)[number])) {
-        return 'Invalid file type. Only .epub files are accepted.';
-      }
-      if (!ACCEPTED_MIME.includes(file.type as (typeof ACCEPTED_MIME)[number]) && file.type !== '') {
-        // file.type may be '' for some OS/browser combos with .epub files — accept if extension matches
-        return 'Invalid MIME type. Only application/epub+zip files are accepted.';
-      }
-      const maxBytes = getMaxUploadBytes();
-      if (file.size > maxBytes) {
-        return `File too large. Maximum size is ${Math.round(maxBytes / 1_048_576)} MB.`;
-      }
-      return null;
-    },
-    [],
-  );
+    if (!ACCEPTED_EXT.includes(ext as (typeof ACCEPTED_EXT)[number])) {
+      return 'Invalid file type. Only .epub files are accepted.';
+    }
+    if (!ACCEPTED_MIME.includes(file.type as (typeof ACCEPTED_MIME)[number]) && file.type !== '') {
+      // file.type may be '' for some OS/browser combos with .epub files — accept if extension matches
+      return 'Invalid MIME type. Only application/epub+zip files are accepted.';
+    }
+    const maxBytes = getMaxUploadBytes();
+    if (file.size > maxBytes) {
+      return `File too large. Maximum size is ${Math.round(maxBytes / 1_048_576)} MB.`;
+    }
+    return null;
+  }, []);
 
   const handleFile = useCallback(
     (file: File) => {

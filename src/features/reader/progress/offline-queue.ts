@@ -147,3 +147,31 @@ export async function removeProgress(bookId: string): Promise<void> {
     console.error('[offline-queue] Failed to remove progress:', err);
   }
 }
+
+/**
+ * Remove ALL queued progress entries from IndexedDB.
+ *
+ * SECURITY / shared-device isolation (ISD §13.H, §13.Z, §13.CC;
+ * Appendix G invariant #25): progress entries are keyed only by
+ * `progress:{bookId}` — they are NOT per-user namespaced. On sign-out
+ * we must purge them so the next user on the same device can never
+ * flush the previous user's reading positions under their own session
+ * (`flushPending` → `saveProgressAction` attributes entries to whatever
+ * session is currently active). The sign-out cleanup flushes first when
+ * online, then calls this to guarantee nothing lingers.
+ */
+export async function clearAllProgress(): Promise<number> {
+  try {
+    const allKeys = await keys();
+    const progressKeys = allKeys.filter(
+      (k) => typeof k === 'string' && k.startsWith(PROGRESS_KEY_PREFIX),
+    );
+    for (const key of progressKeys) {
+      await del(key);
+    }
+    return progressKeys.length;
+  } catch (err) {
+    console.error('[offline-queue] Failed to clear progress queue:', err);
+    return 0;
+  }
+}

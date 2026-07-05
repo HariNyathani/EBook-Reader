@@ -10,11 +10,13 @@
 ## Phase 9: Reader Engine Integration (foliate-js)
 
 ### Objective
+
 Replace the `/reader/[bookId]` placeholder with a working reader that downloads EPUBs via the gated handler, renders them in foliate-js with strict React↔engine isolation, and implements theme/typography injection.
 
 ### Implementation Details
 
 #### 1. ReaderEngine Interface (`src/features/reader/engine/types.ts`)
+
 - **Purpose:** Format-agnostic abstraction over EPUB/PDF/CBZ renderers (SAD §5.1)
 - **Key Types:**
   - `ReaderTheme`: 'light' | 'sepia' | 'dark'
@@ -25,6 +27,7 @@ Replace the `/reader/[bookId]` placeholder with a working reader that downloads 
   - `ReaderLoadError`: Typed error class for load failures
 
 #### 2. FoliateEngine Adapter (`src/features/reader/engine/foliate-engine.ts`)
+
 - **Purpose:** Wraps vendored `<foliate-view>` custom element in ReaderEngine interface
 - **Key Features:**
   - Translates foliate events (load/relocate/error) → ReaderEngineEvent
@@ -33,11 +36,13 @@ Replace the `/reader/[bookId]` placeholder with a working reader that downloads 
   - **Never** exposes iframe to React (strict isolation)
 
 #### 3. Engine Factory (`src/features/reader/engine/index.ts`)
+
 - **Purpose:** Format-specific engine creation (SAD §7 extensibility seam)
 - **API:** `createReaderEngine(format: BookFormat, container: HTMLElement): ReaderEngine`
 - **Current:** Only 'epub' → FoliateEngine
 
 #### 4. useReaderEngine Hook (`src/features/reader/hooks/use-reader-engine.ts`)
+
 - **Purpose:** Sole React↔engine bridge (SAD §5.1)
 - **Lifecycle:**
   1. On mount: createReaderEngine → fetchBookBlob → engine.open(objectURL)
@@ -47,6 +52,7 @@ Replace the `/reader/[bookId]` placeholder with a working reader that downloads 
 - **Returns:** Imperative controls (next, prev, goTo, search, toc, error, loading)
 
 #### 5. fetch-book-blob Utility (`src/features/reader/lib/fetch-book-blob.ts`)
+
 - **Purpose:** Download EPUB via gated handler → Blob → ephemeral objectURL
 - **Security:**
   - Fetches with `credentials: 'include'` (cookie auth)
@@ -55,6 +61,7 @@ Replace the `/reader/[bookId]` placeholder with a working reader that downloads 
   - Supports AbortController for cancellation on unmount
 
 #### 6. styles-mapper Utility (`src/features/reader/lib/styles-mapper.ts`)
+
 - **Purpose:** Map reader-store state → CSS variables for engine
 - **Functions:**
   - `mapStyleToCssVars(style: ReaderStyle)`: Returns CSS variables (--bg, --fg, --font-size, etc.)
@@ -62,6 +69,7 @@ Replace the `/reader/[bookId]` placeholder with a working reader that downloads 
   - `themePalette`: Maps theme names → { bg, fg } colors
 
 #### 7. ReaderView Component (`src/features/reader/components/reader-view.tsx`)
+
 - **Purpose:** Client container that mounts engine and renders book
 - **Features:**
   - Creates containerRef for engine mount
@@ -72,10 +80,12 @@ Replace the `/reader/[bookId]` placeholder with a working reader that downloads 
   - Applies theme background color
 
 #### 8. Dynamic Wrapper (`src/features/reader/components/reader-view.dynamic.ts`)
+
 - **Purpose:** Client-only loading (ssr: false)
 - **Pattern:** `dynamic(() => import('./reader-view'), { ssr: false, loading: ReaderSkeleton })`
 
 #### 9. Reader Store Extension (`src/store/reader-store.ts`)
+
 - **Additive Fields (Phase 9.C Decision C):**
   - `fontFamily: string` (default: 'Georgia, serif')
   - `lineHeight: number` (default: 1.5)
@@ -86,6 +96,7 @@ Replace the `/reader/[bookId]` placeholder with a working reader that downloads 
 - **No Persistence:** Phase 12 adds zustand persist middleware
 
 #### 10. Reader Page Update (`src/app/(app)/reader/[bookId]/page.tsx`)
+
 - **Server Component:**
   - Calls `requireApproved()` (defense-in-depth)
   - Fetches book via `getBookById(bookId)`
@@ -94,6 +105,7 @@ Replace the `/reader/[bookId]` placeholder with a working reader that downloads 
 - **Route Config:** `export const dynamic = 'force-dynamic'`
 
 #### 11. Vendored foliate-js (`src/vendor/foliate-js/`)
+
 - **Files:**
   - `foliate-view.js`: Custom element implementation (functional, simplified)
   - `foliate.d.ts`: Hand-authored ambient TypeScript declarations
@@ -101,10 +113,12 @@ Replace the `/reader/[bookId]` placeholder with a working reader that downloads 
 - **Security:** Sandboxed iframe, React never accesses iframe DOM
 
 #### 12. CSP Configuration
+
 - **Already Configured:** `frame-src 'self' blob:` and `img-src 'self' data: blob:` in `src/lib/http/headers.ts`
 - **Purpose:** Permits foliate's sandboxed iframe (blob URL) and EPUB images
 
 ### Acceptance Criteria (Phase 9)
+
 ✅ 1. `/reader/[bookId]` renders a real reader with paginated book in sandboxed foliate iframe  
 ✅ 2. React communicates with reader **only** via ReaderEngine/useReaderEngine (no iframe DOM access)  
 ✅ 3. Events flow engine→store (relocate updates currentCfi/fraction, ready sets isReady/toc)  
@@ -119,11 +133,13 @@ Replace the `/reader/[bookId]` placeholder with a working reader that downloads 
 ## Phase 10: Reading Progress Synchronization
 
 ### Objective
+
 Persist and restore reading position across sessions, network conditions, and devices with debounced sync, offline queue, beacon endpoint, resume reading, Continue Reading dashboard section, and reading statistics foundation.
 
 ### Implementation Details
 
 #### 1. Database Migration: reading_sessions (`supabase/migrations/0011_reading_sessions.sql`)
+
 - **Table:** `public.reading_sessions`
   - `id`: UUID PK
   - `user_id`: UUID FK → auth.users (cascade delete)
@@ -139,6 +155,7 @@ Persist and restore reading position across sessions, network conditions, and de
 - **Purpose:** Capture-only foundation for future reading statistics (SAD §7)
 
 #### 2. Progress Schemas (`src/features/reader/progress/schemas.ts`)
+
 - **progressSchema:**
   - `bookId`: UUID
   - `cfi`: string (max 4096)
@@ -151,6 +168,7 @@ Persist and restore reading position across sessions, network conditions, and de
   - `durationSeconds`: int >= 0
 
 #### 3. persist-progress Utility (`src/features/reader/progress/persist-progress.ts`)
+
 - **Purpose:** Server-only shared upsert logic for Server Action + beacon endpoint
 - **Functions:**
   - `persistProgress(userId, bookId, cfi, percentage, updatedAt)`:
@@ -166,6 +184,7 @@ Persist and restore reading position across sessions, network conditions, and de
   - Type assertions for Supabase queries (generated types not yet updated)
 
 #### 4. Server Actions (`src/features/reader/progress/actions.ts`)
+
 - **saveProgressAction:**
   - Calls `requireApproved()`
   - Validates input via `progressSchema.safeParse()`
@@ -180,6 +199,7 @@ Persist and restore reading position across sessions, network conditions, and de
   - Failures logged but don't fail action (non-critical)
 
 #### 5. Beacon Endpoint (`src/app/api/progress/route.ts`)
+
 - **Purpose:** POST endpoint for `navigator.sendBeacon` on pagehide/visibilitychange
 - **Config:** `export const runtime = 'nodejs'` (Node runtime, not Edge)
 - **Behavior:**
@@ -195,6 +215,7 @@ Persist and restore reading position across sessions, network conditions, and de
   - Silent failure (no info leak)
 
 #### 6. Offline Queue (`src/features/reader/progress/offline-queue.ts`)
+
 - **Purpose:** IndexedDB queue for offline progress (last-write-wins per book)
 - **Storage:** `idb-keyval` with key pattern `progress:{bookId}`
 - **Functions:**
@@ -212,6 +233,7 @@ Persist and restore reading position across sessions, network conditions, and de
 - **Security:** Only stores non-sensitive position data (cfi/percentage), never book bytes or tokens
 
 #### 7. useProgressSync Hook (`src/features/reader/progress/use-progress-sync.ts`)
+
 - **Purpose:** Debounced progress sync with offline queue + beacon
 - **Behavior:**
   - Subscribes to reader-store `currentCfi`/`fraction`
@@ -227,6 +249,7 @@ Persist and restore reading position across sessions, network conditions, and de
   - Keep-dirty-on-failure ensures retry
 
 #### 8. useReadingSession Hook (`src/features/reader/progress/use-reading-session.ts`)
+
 - **Purpose:** Track active reading time and record sessions
 - **Behavior:**
   - Starts on mount (when `isReady = true`)
@@ -237,6 +260,7 @@ Persist and restore reading position across sessions, network conditions, and de
 - **Security:** Derives userId from session (action-level)
 
 #### 9. Library Queries Update (`src/features/library/queries.ts`)
+
 - **getContinueReading(userId, limit=12):**
   - Fetches books with `0 < percentage < 100` (in-progress, excludes finished/unstarted)
   - Orders by `updated_at desc` (most recent first)
@@ -248,6 +272,7 @@ Persist and restore reading position across sessions, network conditions, and de
   - Not cached (fresh on every reader load)
 
 #### 10. ContinueReading Component (`src/features/library/components/continue-reading.tsx`)
+
 - **Purpose:** Horizontal grid of in-progress books with progress bars
 - **Features:**
   - Renders book covers via `/api/covers/{bookId}` (same-origin, private)
@@ -257,17 +282,20 @@ Persist and restore reading position across sessions, network conditions, and de
   - Returns null if no books (no section rendered)
 
 #### 11. Dashboard Page Update (`src/app/(app)/dashboard/page.tsx`)
+
 - **Changes:**
   - Fetches `continueReading` via `getContinueReading(userId)`
   - Renders `<ContinueReading books={continueReading} />` above catalog (if non-empty)
 
 #### 12. Reader Page Update (`src/app/(app)/reader/[bookId]/page.tsx`)
+
 - **Changes:**
   - Fetches `initialCfi` via `getProgressForBook(userId, bookId)`
   - Passes `initialCfi` to ReaderView (for resume reading)
   - Converts `null` → `undefined` for TypeScript compatibility
 
 #### 13. ReaderView Update (`src/features/reader/components/reader-view.tsx`)
+
 - **Changes:**
   - Accepts `initialCfi?: string` prop
   - Passes `initialCfi` to useReaderEngine (engine navigates to saved position on ready)
@@ -275,12 +303,14 @@ Persist and restore reading position across sessions, network conditions, and de
   - Mounts `useReadingSession(bookId)` (session tracking)
 
 #### 14. Service Worker Update (`public/sw.js`)
+
 - **Changes:**
   - Implements `SYNC_READING_PROGRESS` message handler
   - On message: notifies all clients via `postMessage({ type: 'FLUSH_PROGRESS_QUEUE' })`
   - Clients perform the actual flush (SW doesn't do authenticated writes)
 
 ### Acceptance Criteria (Phase 10)
+
 ✅ 1. Reading position saves (debounced 3s) to `reading_progress` via `saveProgressAction`  
 ✅ 2. Offline edits queue in IndexedDB (last-write-wins per book) and flush on reconnect/load  
 ✅ 3. `POST /api/progress` captures last position on tab close via `sendBeacon` (204, silent drop)  
@@ -295,6 +325,7 @@ Persist and restore reading position across sessions, network conditions, and de
 ## Architecture Summary
 
 ### Data Flow
+
 ```
 User navigates page
   ↓
@@ -314,28 +345,33 @@ Reader page → getProgressForBook → initialCfi → engine.goTo (resume)
 ```
 
 ### Isolation Boundary (SAD §5.1)
+
 - **React:** reader-store (state), useReaderEngine (bridge), ReaderView (UI)
 - **Engine:** FoliateEngine (adapter), <foliate-view> (iframe), vendored foliate-js
 - **Boundary:** React **never** accesses iframe DOM; all communication via ReaderEngine interface
 
 ### Multi-Device Safety (ISD §10.F)
+
 - **Timestamp Comparison:** `updatedAt >= existing.updated_at` → overwrite
 - **Scenario:** Device A saves at T=100, Device B saves at T=200
   - Device A flush at T=150 → no-op (T=150 < T=200, existing preserved)
   - Device C reads → gets T=200 position (newest)
 
 ### Offline Queue (ISD §10.D)
+
 - **Last-Write-Wins:** Only latest position per book stored in IndexedDB
 - **Dirty Flag:** Marks unsynced entries
 - **Flush:** On online event, mount, SW message
 - **Failure Recovery:** Keep dirty on failure (retry later), never lose latest position
 
 ### Beacon Endpoint (ISD §10.E)
+
 - **Purpose:** Guaranteed last-position save on tab close
 - **Constraints:** Fire-and-forget, 204 response, no auth headers (cookies only)
 - **Security:** Silent drop if unauthenticated/unapproved (no info leak)
 
 ### Statistics Foundation (ISD §10.G)
+
 - **Table:** `reading_sessions` (capture-only, no aggregation)
 - **Future:** Charts, daily/weekly summaries (Phase 12+)
 - **Current:** Just records session start/end/duration
@@ -345,6 +381,7 @@ Reader page → getProgressForBook → initialCfi → engine.goTo (resume)
 ## Security Considerations
 
 ### Phase 9
+
 ✅ EPUB fetched with `credentials: 'include'` (cookie auth)  
 ✅ Bytes held only as ephemeral Blob/objectURL, revoked on unmount  
 ✅ foliate renders in **sandboxed iframe** (sandbox attribute not removed)  
@@ -353,6 +390,7 @@ Reader page → getProgressForBook → initialCfi → engine.goTo (resume)
 ✅ CSP permits `blob:` for frame-src/img-src only (not arbitrary remote origins)
 
 ### Phase 10
+
 ✅ All writes derive `user_id` from session claims (never client input)  
 ✅ RLS enforces own-row access (user_id = auth.uid())  
 ✅ Approval check (is_approved = true) on all write paths  
@@ -367,10 +405,12 @@ Reader page → getProgressForBook → initialCfi → engine.goTo (resume)
 ## Testing
 
 ### Unit Tests
+
 ✅ 98/98 tests pass  
 ✅ Pre-existing tests (library-cache-wiring.test.ts) have type errors but pass at runtime (not related to Phase 9-10)
 
 ### Test Coverage (Phase 9-10)
+
 - **styles-mapper:** Maps each theme/typography combo to expected CSS values (manual verification)
 - **fetch-book-blob:** Maps 401/403/404 to ReaderLoadError (manual verification)
 - **persist-progress:** Conditional upsert logic (newer overwrites, older no-ops) (manual verification)
@@ -378,6 +418,7 @@ Reader page → getProgressForBook → initialCfi → engine.goTo (resume)
 - **useProgressSync:** Debounces, enqueues on offline, flushes on online, sends beacon on pagehide (manual verification)
 
 ### E2E Tests (Manual Verification)
+
 ✅ Open book → renders in sandboxed iframe  
 ✅ Navigate pages → currentCfi/fraction update in store  
 ✅ Change theme/fontSize → live update via setStyles  
@@ -392,6 +433,7 @@ Reader page → getProgressForBook → initialCfi → engine.goTo (resume)
 ## Performance Considerations
 
 ### Phase 9
+
 ✅ Engine mounts once (containerRef stable, no remount on unrelated store changes)  
 ✅ Narrow subscription to typography slice (avoids unnecessary setStyles calls)  
 ✅ Dynamic import keeps foliate out of main bundle  
@@ -399,6 +441,7 @@ Reader page → getProgressForBook → initialCfi → engine.goTo (resume)
 ✅ setStyles is cheap (CSS-var injection, no DOM manipulation)
 
 ### Phase 10
+
 ✅ 3s debounce coalesces frequent relocate events (at most one write per 3s)  
 ✅ Beacon sends only on hide/close (rare)  
 ✅ IndexedDB writes are cheap (one entry per book)  
@@ -410,6 +453,7 @@ Reader page → getProgressForBook → initialCfi → engine.goTo (resume)
 ## Files Created/Modified
 
 ### Phase 9 (Created)
+
 - `src/vendor/foliate-js/foliate-view.js`
 - `src/vendor/foliate-js/foliate.d.ts`
 - `src/vendor/foliate-js/VENDOR.md`
@@ -423,11 +467,13 @@ Reader page → getProgressForBook → initialCfi → engine.goTo (resume)
 - `src/features/reader/components/reader-view.dynamic.ts`
 
 ### Phase 9 (Modified)
+
 - `src/store/reader-store.ts` (additive typography fields)
 - `src/app/(app)/reader/[bookId]/page.tsx` (server component with book fetch)
 - `src/features/reader/README.md` (isolation boundary documentation)
 
 ### Phase 10 (Created)
+
 - `supabase/migrations/0011_reading_sessions.sql`
 - `src/features/reader/progress/schemas.ts`
 - `src/features/reader/progress/persist-progress.ts`
@@ -439,6 +485,7 @@ Reader page → getProgressForBook → initialCfi → engine.goTo (resume)
 - `src/features/library/components/continue-reading.tsx`
 
 ### Phase 10 (Modified)
+
 - `src/features/library/queries.ts` (getContinueReading, getProgressForBook)
 - `src/app/(app)/dashboard/page.tsx` (Continue Reading section)
 - `src/app/(app)/reader/[bookId]/page.tsx` (initialCfi for resume)
@@ -450,6 +497,7 @@ Reader page → getProgressForBook → initialCfi → engine.goTo (resume)
 ## Next Steps (Phase 11)
 
 Phase 11 will implement the Reader Experience & UI:
+
 - Auto-hiding reader chrome (toolbar + progress bar)
 - Table of Contents drawer
 - In-book search
@@ -464,6 +512,7 @@ Phase 11 will implement the Reader Experience & UI:
 - Animations (respect prefers-reduced-motion)
 
 **Phase 11 will NOT implement:**
+
 - Preference persistence (Phase 12)
 - Cloud sync (Phase 12)
 - Highlights/annotations/dictionary (future)

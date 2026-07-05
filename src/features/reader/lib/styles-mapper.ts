@@ -105,7 +105,10 @@ function escapeForCssString(value: string): string {
   // trust the caller (this comes from the user's reader-store config).
   // We just need to make sure each name is a valid CSS identifier list,
   // so quote any name that contains a space or quote.
-  const names = value.split(',').map((name) => name.trim()).filter(Boolean);
+  const names = value
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean);
   return names
     .map((name) => {
       // Generic family keywords (serif, sans-serif, monospace, etc.) are

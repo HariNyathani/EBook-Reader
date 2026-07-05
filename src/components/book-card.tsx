@@ -11,6 +11,12 @@ interface BookCardProps {
   coverSrc?: string;
   onOpen?: () => void;
   className?: string;
+  /**
+   * Phase 13: when true, renders a small "Available offline" badge
+   * over the cover (the book has been downloaded by the current user
+   * via the offline book store).
+   */
+  availableOffline?: boolean;
 }
 
 /**
@@ -18,7 +24,14 @@ interface BookCardProps {
  * No data fetching — all data passed as props.
  * Phase 5+ will wire this to real library data.
  */
-export function BookCard({ title, author, coverSrc, onOpen, className }: BookCardProps) {
+export function BookCard({
+  title,
+  author,
+  coverSrc,
+  onOpen,
+  className,
+  availableOffline = false,
+}: BookCardProps) {
   return (
     <article
       className={cn(
@@ -35,6 +48,16 @@ export function BookCard({ title, author, coverSrc, onOpen, className }: BookCar
         ) : (
           <div className="text-foreground/40 flex h-full w-full items-center justify-center p-4 text-center text-xs">
             No cover
+          </div>
+        )}
+        {availableOffline && (
+          <div
+            className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/95 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm"
+            aria-label="Available offline"
+            title="Available offline"
+          >
+            <span aria-hidden="true">✓</span>
+            <span>Offline</span>
           </div>
         )}
       </div>

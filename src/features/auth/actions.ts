@@ -1,11 +1,51 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { ROUTES } from '@/lib/routes';
 import { ok, fail } from '@/lib/result';
 import type { ActionResult } from '@/lib/result';
 import { credentialsSchema, registerSchema } from './schemas';
+import { authLimiter, identifierForIp, identifierForAuth } from '@/lib/security/rate-limit';
+import { logger } from '@/lib/logging/logger';
+
+/**
+ * Helper: extract the client IP from the incoming request headers.
+ * Used for rate-limiting at the Server-Action layer.
+ */
+async function getClientIp(): Promise<string> {
+  try {
+    const h = await headers();
+    return identifierForIp(new Request('http://x', { headers: h }));
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
+ * Helper: enforce the auth rate limit. Returns null on success, or
+ * an ActionResult describing the failure to the caller.
+ */
+async function enforceAuthRateLimit(
+  email: string | null | undefined,
+): Promise<ActionResult | null> {
+  const ip = await getClientIp();
+  const id = identifierForAuth(ip, email ?? null);
+  const result = await authLimiter(id);
+  if (!result.success) {
+    logger.warn('rate_limit.exceeded', {
+      policy: 'auth',
+      ip,
+      retryAfter: result.retryAfter,
+    });
+    return fail(
+      `Too many sign-in attempts. Please try again in ${result.retryAfter} seconds.`,
+      'RATE_LIMITED',
+    );
+  }
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Sign Up
@@ -34,6 +74,10 @@ export async function signUpAction(formData: FormData): Promise<ActionResult> {
   }
 
   const { email, password } = parsed.data;
+
+  // Rate-limit BEFORE talking to Supabase (cheap rejection).
+  const limited = await enforceAuthRateLimit(email);
+  if (limited) return limited;
 
   try {
     const supabase = await createClient();
@@ -84,6 +128,10 @@ export async function signInAction(formData: FormData, redirectTo?: string): Pro
   }
 
   const { email, password } = parsed.data;
+
+  // Rate-limit BEFORE talking to Supabase.
+  const limited = await enforceAuthRateLimit(email);
+  if (limited) return limited;
 
   try {
     const supabase = await createClient();

@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getClaims } from '@/features/auth/session';
 import { getObjectStream, R2NotFoundError } from '@/lib/r2';
+import { cacheHeaderFor } from '@/lib/cache/http';
 import type { Book } from '@/types';
 
 /**
@@ -43,11 +44,7 @@ export async function GET(
 
   // Step 3: Look up book
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('books')
-    .select('*')
-    .eq('id', id)
-    .limit(1);
+  const { data, error } = await supabase.from('books').select('*').eq('id', id).limit(1);
 
   const books = (data as Book[] | null) ?? [];
 
@@ -70,7 +67,10 @@ export async function GET(
     // per ISD §6.T rather than trusting R2's stored content-type.
     const headers: Record<string, string> = {
       'Content-Type': 'image/jpeg',
-      'Cache-Control': 'private, max-age=3600',
+      // Phase 14 (ISD §14.H): centralized cache policy. Covers are
+      // `private, max-age=3600` — they are gated by auth, so a shared
+      // cache would leak them. The CDN must not cache.
+      'Cache-Control': cacheHeaderFor('private-short'),
       'X-Content-Type-Options': 'nosniff',
     };
 

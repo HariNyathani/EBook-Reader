@@ -1,0 +1,136 @@
+# GitHub Actions — Preview deploy (Phase 16, ISD §16.G, §16.H, §16.L).
+#
+# Deploys every PR to a Vercel preview environment using PREVIEW
+# Supabase + R2 credentials. Runs a non-destructive smoke test
+# against the deployed URL and posts the result as a PR comment.
+#
+# Triggers: pull_request (opened, synchronize, reopened).
+# Required secrets:
+#   VERCEL_TOKEN         — Vercel deploy token
+#   PREVIEW_SUPABASE_URL, PREVIEW_SUPABASE_ANON_KEY,
+#   PREVIEW_SUPABASE_SERVICE_ROLE_KEY
+#   PREVIEW_R2_ACCOUNT_ID, PREVIEW_R2_ACCESS_KEY_ID,
+#   PREVIEW_R2_SECRET_ACCESS_KEY
+#   PREVIEW_UPSTASH_REDIS_REST_URL, PREVIEW_UPSTASH_REDIS_REST_TOKEN
+#   PREVIEW_SENTRY_DSN
+#
+# Environment isolation (ISD §13.0.2 E): the preview Supabase
+# project and R2 bucket are SEPARATE from production. The smoke
+# test uses a non-privileged test account provisioned in the
+# preview Supabase.
+
+name: Deploy Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  deployments: write
+
+jobs:
+  preview:
+    name: Vercel preview + smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Vercel project + scope are passed via Vercel CLI args.
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      # Map PREVIEW_* secrets to the public env names Next.js reads.
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.PREVIEW_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PREVIEW_SUPABASE_ANON_KEY }}
+      SUPABASE_URL: ${{ secrets.PREVIEW_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.PREVIEW_SUPABASE_SERVICE_ROLE_KEY }}
+      R2_ACCOUNT_ID: ${{ secrets.PREVIEW_R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.PREVIEW_R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.PREVIEW_R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: epub-reader-assets-preview
+      UPSTASH_REDIS_REST_URL: ${{ secrets.PREVIEW_UPSTASH_REDIS_REST_URL }}
+      UPSTASH_REDIS_REST_TOKEN: ${{ secrets.PREVIEW_UPSTASH_REDIS_REST_TOKEN }}
+      SENTRY_DSN: ${{ secrets.PREVIEW_SENTRY_DSN }}
+      APP_ENV: preview
+      SENTRY_REQUIRED: 'true'
+      NEXT_PUBLIC_APP_URL: ${{ steps.deploy.outputs.preview-url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: pnpm
+
+      - name: Install Vercel CLI
+        run: pnpm add -g vercel@latest
+
+      - name: Pull Vercel project info
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build (preview)
+        run: pnpm install --frozen-lockfile && pnpm build
+
+      - name: Deploy to Vercel preview
+        id: deploy
+        run: |
+          URL=$(vercel deploy --yes --token=${{ secrets.VERCEL_TOKEN }} --target=preview)
+          echo "preview-url=$URL" >> $GITHUB_OUTPUT
+          echo "Preview URL: $URL"
+
+      - name: Wait for preview to be ready
+        # Vercel sometimes returns a URL before propagation is complete.
+        # Poll the health endpoint until 200/503 is observed.
+        run: |
+          for i in $(seq 1 20); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ steps.deploy.outputs.preview-url }}/api/health" || echo "000")
+            if [ "$STATUS" = "200" ] || [ "$STATUS" = "503" ]; then
+              echo "Preview is up (status=$STATUS)"
+              exit 0
+            fi
+            echo "Waiting for preview... (status=$STATUS, attempt $i/20)"
+            sleep 5
+          done
+          echo "Preview did not become ready in time"
+          exit 1
+
+      - name: Run smoke test
+        id: smoke
+        env:
+          SMOKE_URL: ${{ steps.deploy.outputs.preview-url }}
+          SMOKE_EMAIL: ${{ secrets.PREVIEW_SMOKE_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.PREVIEW_SMOKE_PASSWORD }}
+          SMOKE_BOOK_ID: ${{ secrets.PREVIEW_SMOKE_BOOK_ID }}
+        run: |
+          set -e
+          pnpm install --frozen-lockfile
+          pnpm smoke
+          echo "smoke=ok" >> $GITHUB_OUTPUT
+
+      - name: Comment on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.deploy.outputs.preview-url }}';
+            const ok = '${{ steps.smoke.outputs.smoke }}' === 'ok';
+            const body = ok
+              ? `✅ Preview deployed and smoke passed.\n\n**URL:** ${url}`
+              : `❌ Preview deployed but smoke FAILED.\n\n**URL:** ${url}\n\nSee the job logs for details.`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
