@@ -68,13 +68,14 @@ describe('getServerEnv()', () => {
     vi.unstubAllEnvs();
   });
 
-  it('uses R2_BUCKET default when not set', async () => {
+  it('uses R2_BUCKET value when explicitly set', async () => {
     vi.stubEnv('SUPABASE_URL', VALID_SERVER_ENV.SUPABASE_URL);
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', VALID_SERVER_ENV.SUPABASE_SERVICE_ROLE_KEY);
     vi.stubEnv('R2_ACCOUNT_ID', VALID_SERVER_ENV.R2_ACCOUNT_ID);
     vi.stubEnv('R2_ACCESS_KEY_ID', VALID_SERVER_ENV.R2_ACCESS_KEY_ID);
     vi.stubEnv('R2_SECRET_ACCESS_KEY', VALID_SERVER_ENV.R2_SECRET_ACCESS_KEY);
-    vi.stubEnv('R2_BUCKET', ''); // unset — should use default
+    // Explicitly set a custom bucket name to verify it's passed through correctly
+    vi.stubEnv('R2_BUCKET', 'my-custom-bucket');
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', VALID_PUBLIC_ENV.NEXT_PUBLIC_SUPABASE_URL);
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', VALID_PUBLIC_ENV.NEXT_PUBLIC_SUPABASE_ANON_KEY);
     vi.stubEnv('NEXT_PUBLIC_APP_URL', VALID_PUBLIC_ENV.NEXT_PUBLIC_APP_URL);
@@ -84,7 +85,7 @@ describe('getServerEnv()', () => {
     _resetServerEnvCache();
 
     const env = getServerEnv();
-    expect(env.R2_BUCKET).toBe('epub-reader-assets');
+    expect(env.R2_BUCKET).toBe('my-custom-bucket');
 
     vi.unstubAllEnvs();
   });

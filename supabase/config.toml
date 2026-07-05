@@ -1,0 +1,53 @@
+# Supabase Local Development Configuration
+# Phase 3: Configures the local Supabase stack (Docker) for development.
+# Run: pnpm supabase start
+#
+# Access Token Hook Activation:
+# The [auth.hook.custom_access_token] section below enables the hook locally.
+# For the CLOUD project: enable it in the Supabase Dashboard:
+#   Authentication → Hooks → Custom Access Token → Enable
+#   → Select function: public.custom_access_token_hook
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+port = 54325
+
+[auth]
+enabled = true
+port = 54326
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["http://127.0.0.1:3000"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = false
+enable_confirmations = false
+
+# Custom Access Token Hook — MUST be enabled for is_approved/is_admin claims.
+# Phase 3 §0.4: Injects top-level JWT claims from public.profiles.
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/custom_access_token_hook"

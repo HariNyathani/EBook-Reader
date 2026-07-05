@@ -1,7 +1,16 @@
 /**
  * MANUAL CONTRACT — must stay in sync with Phase 3 migrations until Supabase type generation is enabled.
  * Field names use snake_case to match Postgres/Supabase row shape (avoids mapping churn).
- * See: src/types/database.ts (generated in Phase 3) for the authoritative generated types.
+ *
+ * Phase 3 reconciliation (ISD §3.H): Verified field-for-field against src/types/database.ts.
+ * All four interfaces (Profile, Book, UserLibraryEntry, ReadingProgress) match their
+ * database.ts Row counterparts exactly. No adjustments were needed.
+ *
+ * CANONICAL SOURCE: src/types/database.ts (generated/hand-authored from migrations).
+ * Run `pnpm db:types` after schema changes to regenerate database.ts, then re-verify this file.
+ *
+ * Convenience re-exports from database.ts are available:
+ *   import type { Tables, InsertTables, UpdateTables } from '@/types/database';
  */
 
 /** Represents a book stored in R2 and catalogued in the database. */
