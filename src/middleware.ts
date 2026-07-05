@@ -6,11 +6,14 @@ import { ROUTES } from '@/lib/routes';
  * Next.js Edge Middleware — Phase 4 (SAD §3.1)
  *
  * Two responsibilities (in order):
- * 1. Session refresh: call updateSession() so Supabase auth cookies are rotated each request.
+ * 1. Session refresh: updateSession() rotates Supabase auth cookies each request.
  * 2. Route guards: read top-level JWT claims (is_approved, is_admin) and redirect as needed.
  *
- * IMPORTANT: No DB queries here — authorization is claim-only (sub-5ms edge decisions).
- * The access-token hook (Phase 3) bakes claims into the JWT so middleware needs no DB round-trip.
+ * AUDIT FIX (CRITICAL): Claims now come from updateSession(), which extracts them via the
+ * Supabase SSR client. We no longer hand-parse the `sb-*-auth-token` cookie — that broke
+ * under @supabase/ssr 0.5.2 (base64- prefixing + chunked `.0`/`.1` cookies), which caused
+ * every authenticated user to be misclassified as anonymous and produced a /dashboard↔/login
+ * redirect loop for logged-in users.
  *
  * Guard rules (per ISD §4.G Step 3):
  * - Unauthenticated → protected route: redirect to /login?redirectTo=<path>
@@ -20,69 +23,32 @@ import { ROUTES } from '@/lib/routes';
  * - /pending-approval: reachable by any authenticated user; approved → /dashboard
  */
 export async function middleware(request: NextRequest) {
-  // Step 1: Refresh session cookie and get the response with updated cookies.
-  const response = await updateSession(request);
+  // Step 1: Refresh session + obtain decoded top-level claims (null => unauthenticated).
+  const { response, claims } = await updateSession(request);
 
-  // Step 2: Read claims from the (now-refreshed) session.
-  // We decode the access token from the Set-Cookie header / request cookie directly,
-  // avoiding a second client instantiation in the hot path.
-  // ISD-NOTE: We read from the cookie in the request because the updateSession response
-  // may have rotated cookies — but the access_token itself is still decodable from either.
   const { pathname } = request.nextUrl;
 
-  // Extract the access token from the Supabase session cookie.
-  // Cookie name follows @supabase/ssr convention: sb-<ref>-auth-token or sb-access-token.
-  let isAuthenticated = false;
-  let isApproved = false;
-  let isAdmin = false;
+  const isAuthenticated = claims !== null;
+  const isApproved = claims?.isApproved ?? false;
+  const isAdmin = claims?.isAdmin ?? false;
 
-  // Find the auth cookie (supabase stores it as JSON in sb-*-auth-token).
-  const authCookie = request.cookies
-    .getAll()
-    .find((c) => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
-
-  if (authCookie) {
-    try {
-      // The cookie value is JSON: { access_token, refresh_token, ... }
-      // ISD-NOTE: We parse base64url segments without signature verification here
-      // because the updateSession() call above already validated the session server-side.
-      const cookieValue = decodeURIComponent(authCookie.value);
-      const sessionData = JSON.parse(cookieValue) as { access_token?: string };
-      const accessToken = sessionData.access_token;
-
-      if (accessToken) {
-        const [, payloadB64] = accessToken.split('.');
-        if (payloadB64) {
-          const payload = JSON.parse(
-            Buffer.from(payloadB64, 'base64url').toString('utf-8'),
-          ) as Record<string, unknown>;
-
-          isAuthenticated = true;
-          isApproved = payload['is_approved'] === true;
-          isAdmin = payload['is_admin'] === true;
-        }
-      }
-    } catch {
-      // Malformed cookie — treat as unauthenticated (fail-closed).
-      isAuthenticated = false;
-    }
-  }
-
-  // Step 3: Guard logic.
+  // Step 2: Route classification.
   const isProtectedApp = pathname.startsWith('/dashboard') || pathname.startsWith('/reader');
   const isAdminRoute = pathname.startsWith('/admin');
   const isAuthRoute = pathname === ROUTES.LOGIN || pathname === ROUTES.REGISTER;
   const isPendingApprovalRoute = pathname === ROUTES.PENDING_APPROVAL;
 
-  // Helper: redirect preserving the refreshed cookies.
+  // Helper: redirect while preserving the refreshed auth cookies from updateSession.
+  // (A common Next.js middleware bug is dropping Set-Cookie on redirect.)
   function redirectWithCookies(url: URL) {
     const redirectResponse = NextResponse.redirect(url);
-    // Copy Set-Cookie headers from the updateSession response.
     response.headers.getSetCookie().forEach((cookie) => {
       redirectResponse.headers.append('Set-Cookie', cookie);
     });
     return redirectResponse;
   }
+
+  // Step 3: Guard logic.
 
   // Rule: authenticated users on auth pages → redirect away.
   if (isAuthRoute && isAuthenticated) {

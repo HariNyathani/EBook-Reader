@@ -16,7 +16,9 @@ import { useEffect } from 'react';
 export function ServiceWorkerRegistrar() {
   useEffect(() => {
     const isDev = process.env.NODE_ENV === 'development';
-    const forceInDev = process.env['NEXT_PUBLIC_SW_DEV'] === 'true';
+    // Dot notation so Next.js inlines this NEXT_PUBLIC_* var into the client bundle
+    // (bracket notation is not statically replaced and would be undefined in the browser).
+    const forceInDev = process.env.NEXT_PUBLIC_SW_DEV === 'true';
 
     if (isDev && !forceInDev) return;
     if (!('serviceWorker' in navigator)) return;
