@@ -179,3 +179,32 @@ export async function getSignedReadUrl(key: string, expiresInSeconds = 300): Pro
     throw mapSdkError(key, err);
   }
 }
+
+/**
+ * Generates a short-lived presigned URL for uploading an object to R2.
+ * Default TTL is 300 seconds (5 minutes).
+ *
+ * Used for the optional presigned direct-to-R2 upload fallback (ISD §5·0.2 note B).
+ * Only used when UPLOAD_STRATEGY=presigned in env.
+ *
+ * @param key - R2 object key
+ * @param expiresInSeconds - TTL in seconds, max 300
+ * @param contentType - Expected content type (must match actual upload)
+ * @throws {R2Error} on failure
+ */
+export async function getSignedUploadUrl(
+  key: string,
+  expiresInSeconds = 300,
+  contentType = 'application/epub+zip',
+): Promise<string> {
+  try {
+    const command = new PutObjectCommand({
+      Bucket: getBucket(),
+      Key: key,
+      ContentType: contentType,
+    });
+    return await getSignedUrl(getClient(), command, { expiresIn: expiresInSeconds });
+  } catch (err) {
+    throw mapSdkError(key, err);
+  }
+}

@@ -15,3 +15,13 @@ export const approvalSchema = z.object({
 });
 
 export type ApprovalInput = z.infer<typeof approvalSchema>;
+
+/** Input for toggling a user's admin status. */
+export const adminToggleSchema = z.object({
+  /** UUID of the user's profile to grant/revoke admin. */
+  userId: uuidSchema,
+  /** true = grant admin, false = revoke admin. */
+  makeAdmin: z.boolean(),
+});
+
+export type AdminToggleInput = z.infer<typeof adminToggleSchema>;

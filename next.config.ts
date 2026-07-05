@@ -4,6 +4,20 @@ import { securityHeaders } from './src/lib/http/headers';
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
+  // Server Actions body size limit (Phase 6)
+  // Required for EPUB uploads — default 1MB is too small for typical EPUB files
+  // ISD §5·0.2 note (B): raised to 50MB to accommodate large EPUB uploads.
+  // NOTE: `serverActions` MUST live under `experimental` — Next.js 15 reads
+  // `experimental.serverActions.bodySizeLimit`. A top-level key is silently
+  // ignored (NextConfig's index signature hides the typo from typecheck),
+  // leaving the 1MB default and breaking any upload >1MB.
+  experimental: {
+    serverActions: {
+      // SizeLimit is a `${number}mb`-style template type; env is a plain string.
+      bodySizeLimit: (process.env['SERVER_ACTIONS_BODY_LIMIT'] ?? '50mb') as `${number}mb`,
+    },
+  },
+
   async headers() {
     return [
       {

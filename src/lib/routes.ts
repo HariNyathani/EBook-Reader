@@ -24,6 +24,8 @@ export const ROUTES = Object.freeze({
 
   /** Admin routes (require auth + admin claim) */
   ADMIN: '/admin',
+  ADMIN_USERS: '/admin/users',
   ADMIN_UPLOADS: '/admin/uploads',
-  ADMIN_APPROVALS: '/admin/approvals',
+  ADMIN_BOOKS: '/admin/books',
+  ADMIN_APPROVALS: '/admin/approvals', // Redirects to /admin/users?status=pending (back-compat)
 } as const);

@@ -15,6 +15,7 @@ export {
   getObjectStream,
   deleteObject,
   getSignedReadUrl,
+  getSignedUploadUrl,
   _setR2ClientOverride,
 } from './operations';
 export type { R2PutParams, R2GetResult } from './operations';

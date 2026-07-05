@@ -128,6 +128,11 @@ const serverEnvSchema = z.object({
   R2_ACCESS_KEY_ID: z.string().min(1, 'R2_ACCESS_KEY_ID is required'),
   R2_SECRET_ACCESS_KEY: z.string().min(1, 'R2_SECRET_ACCESS_KEY is required'),
   R2_BUCKET: z.string().min(1).default('epub-reader-assets'),
+
+  // Upload configuration (Phase 6)
+  UPLOAD_STRATEGY: z.enum(['stream', 'presigned']).default('stream'),
+  MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(52_428_800), // 50 MB
+  SERVER_ACTIONS_BODY_LIMIT: z.string().default('50mb'),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema> & {
@@ -160,6 +165,9 @@ export function getServerEnv(): ServerEnv {
     R2_ACCESS_KEY_ID: process.env['R2_ACCESS_KEY_ID'],
     R2_SECRET_ACCESS_KEY: process.env['R2_SECRET_ACCESS_KEY'],
     R2_BUCKET: process.env['R2_BUCKET'],
+    UPLOAD_STRATEGY: process.env['UPLOAD_STRATEGY'],
+    MAX_UPLOAD_BYTES: process.env['MAX_UPLOAD_BYTES'],
+    SERVER_ACTIONS_BODY_LIMIT: process.env['SERVER_ACTIONS_BODY_LIMIT'],
   });
 
   if (!result.success) {
