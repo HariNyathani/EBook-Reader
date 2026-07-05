@@ -72,7 +72,7 @@ export function UploadForm() {
         </div>
       )}
 
-      {/* Optional metadata fields */}
+      {/* Optional metadata override fields (ISD §7.H upload-form.tsx) */}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="title" className="mb-1 block text-sm font-medium text-gray-700">
@@ -82,23 +82,29 @@ export function UploadForm() {
             type="text"
             id="title"
             name="title"
-            placeholder="Leave blank to derive from filename"
+            placeholder="Leave blank to auto-detect from EPUB"
             maxLength={300}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
+          <p className="mt-1 text-xs text-gray-500">
+            If blank, the title is extracted from the EPUB metadata.
+          </p>
         </div>
         <div>
           <label htmlFor="author" className="mb-1 block text-sm font-medium text-gray-700">
-            Author <span className="text-gray-400">(optional)</span>
+            Author <span className="text-gray-400">(optional override)</span>
           </label>
           <input
             type="text"
             id="author"
             name="author"
-            placeholder="Enter author name"
+            placeholder="Leave blank to auto-detect from EPUB"
             maxLength={200}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
+          <p className="mt-1 text-xs text-gray-500">
+            If blank, the author is extracted from the EPUB metadata.
+          </p>
         </div>
       </div>
 

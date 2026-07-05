@@ -7,7 +7,7 @@ import { ok, fail } from '@/lib/result';
 import type { ActionResult } from '@/lib/result';
 import { epubKey, coverKey } from '@/lib/constants';
 import { putObject, deleteObject, R2NotFoundError } from '@/lib/r2';
-import { activeExtractor } from '@/lib/epub';
+import { activeExtractor, EpubInvalidError, EpubEncryptedError, EpubParseError } from '@/lib/epub';
 import { uploadMetaSchema, deleteBookSchema } from './schemas';
 import { getMaxUploadBytes, ACCEPTED_EXT, ACCEPTED_MIME } from './constants';
 
@@ -89,6 +89,16 @@ export async function uploadBookAction(
     });
   } catch (err) {
     console.error('[uploadBookAction] Metadata extraction failed:', err);
+
+    // Map EPUB errors to user-friendly messages (ISD §7.X)
+    if (err instanceof EpubInvalidError || err instanceof EpubEncryptedError) {
+      return fail('This file is not a valid or supported EPUB', 'INVALID_FILE');
+    }
+    if (err instanceof EpubParseError) {
+      return fail('Failed to parse EPUB metadata', 'INVALID_FILE');
+    }
+
+    // Unexpected error
     return fail('Failed to extract metadata from EPUB', 'INVALID_FILE');
   }
 

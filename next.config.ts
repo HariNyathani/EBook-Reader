@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next';
 import { securityHeaders } from './src/lib/http/headers';
+import path from 'node:path';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -16,6 +17,28 @@ const nextConfig: NextConfig = {
       // SizeLimit is a `${number}mb`-style template type; env is a plain string.
       bodySizeLimit: (process.env['SERVER_ACTIONS_BODY_LIMIT'] ?? '50mb') as `${number}mb`,
     },
+  },
+
+  // ISD §9.E: foliate-js is vendored. The real <foliate-view> element
+  // dynamic-imports several book-format adapters (CBZ, FB2, PDF, MOBI/KF8)
+  // in addition to the EPUB one. We only support EPUB, so we alias those
+  // dynamic imports to a stub module that throws an
+  // `UnsupportedTypeError` at runtime. Without these aliases, webpack
+  // fails at build time because the dynamic-import targets do not exist
+  // on disk. The stub is in `src/vendor/foliate-js/stubs/`.
+  webpack(config) {
+    const stub = path.resolve(
+      __dirname,
+      'src/vendor/foliate-js/stubs/unsupported-format-stub.js',
+    );
+    config.resolve.alias = {
+      ...(config.resolve.alias ?? {}),
+      './comic-book.js': stub,
+      './fb2.js': stub,
+      './pdf.js': stub,
+      './mobi.js': stub,
+    };
+    return config;
   },
 
   async headers() {

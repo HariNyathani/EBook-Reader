@@ -16,6 +16,7 @@ export const ROUTES = Object.freeze({
 
   /** App routes (require auth + approval) */
   DASHBOARD: '/dashboard',
+  BOOK_DETAILS: (bookId: string) => `/dashboard/books/${bookId}`,
   /**
    * Dynamic reader route — call as a function to get the path string.
    * Example: ROUTES.READER('abc-123') === '/reader/abc-123'

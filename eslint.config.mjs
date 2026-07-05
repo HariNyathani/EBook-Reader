@@ -11,6 +11,14 @@ const compat = new FlatCompat({
   baseDirectory: __dirname,
 });
 
-const eslintConfig = [...compat.extends('next/core-web-vitals', 'next/typescript')];
+const eslintConfig = [
+  // Vendored third-party source — must NOT be linted. We pin these at a
+  // specific commit hash (see src/vendor/foliate-js/VENDOR.md), so any
+  // change to them is an auditable vendor-bump, not a code-quality fix.
+  {
+    ignores: ['src/vendor/**'],
+  },
+  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+];
 
 export default eslintConfig;

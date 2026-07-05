@@ -171,6 +171,52 @@ export type Database = {
           },
         ];
       };
+      // Phase 10 (migration 0011): capture-only reading-statistics foundation.
+      reading_sessions: {
+        Row: {
+          id: string;
+          user_id: string;
+          book_id: string;
+          started_at: string;
+          ended_at: string;
+          duration_seconds: number;
+          created_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          book_id: string;
+          started_at: string;
+          ended_at: string;
+          duration_seconds: number;
+          created_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          book_id?: string;
+          started_at?: string;
+          ended_at?: string;
+          duration_seconds?: number;
+          created_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'reading_sessions_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'reading_sessions_book_id_fkey';
+            columns: ['book_id'];
+            isOneToOne: false;
+            referencedRelation: 'books';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {

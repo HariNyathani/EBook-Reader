@@ -62,14 +62,18 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ---------------------------------------------------------------------------
-// Message — Phase 5 stub: offline reading progress sync
+// Message — Phase 10: Offline reading progress sync
 // ---------------------------------------------------------------------------
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SYNC_READING_PROGRESS') {
-    // Phase 5: Implement offline reading progress sync here.
-    // This stub exists so Phase 5 can implement the handler without changing the SW registration API.
-    // The sync trigger fires from the reader store when the user comes back online.
-    // TODO (Phase 5): Read queued progress entries from idb-keyval and POST to /api/progress
-    console.log('[SW] SYNC_READING_PROGRESS received — no-op until Phase 5');
+    // Notify all clients to flush their offline progress queue
+    // ISD §10.I: SW acts as a coordinator, clients perform the actual sync
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window' }).then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: 'FLUSH_PROGRESS_QUEUE' });
+        });
+      })
+    );
   }
 });

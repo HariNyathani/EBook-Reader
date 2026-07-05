@@ -1,19 +1,47 @@
-// Server Component — Reader placeholder
-// Phase 5 will implement: Foliate iframe, CFI navigation, progress persistence.
+import { requireApproved } from '@/features/auth/session';
+import { getBookById, getProgressForBook } from '@/features/library/queries';
+import { notFound } from 'next/navigation';
+import ReaderView from '@/features/reader/components/reader-view.dynamic';
+
+/**
+ * Reader page — server component that fetches the book and renders the client-side ReaderView.
+ *
+ * Phase 9 (ISD §9.F): Replaces the Phase 1 placeholder. This is a server component that:
+ * 1. Calls requireApproved() to enforce auth + approval (defense-in-depth)
+ * 2. Fetches the book via getBookById() (Phase 8)
+ * 3. Renders the dynamic ReaderView (client-only, ssr: false)
+ *
+ * Phase 10: Fetch initial progress and pass initialCfi for resume reading.
+ *
+ * ISD §9.L: Route is force-dynamic (auth + per-book).
+ */
 interface ReaderPageProps {
   params: Promise<{ bookId: string }>;
 }
 
+export const dynamic = 'force-dynamic';
+
 export default async function ReaderPage({ params }: ReaderPageProps) {
   const { bookId } = await params;
 
+  // Defense-in-depth: requireApproved() enforces auth + approval at the layout level,
+  // but we call it here as well for explicitness and to fail fast.
+  const claims = await requireApproved();
+
+  // Fetch the book metadata and saved progress in parallel
+  const [book, initialCfi] = await Promise.all([
+    getBookById(bookId),
+    getProgressForBook(claims.userId, bookId),
+  ]);
+
+  if (!book) {
+    notFound();
+  }
+
+  // Render the client-side reader (dynamic import, ssr: false)
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <h1 className="text-2xl font-bold">Reader</h1>
-      <p className="mt-2 text-sm text-gray-500">
-        Book ID: <code className="bg-foreground/10 rounded px-1">{bookId}</code>
-      </p>
-      <p className="mt-1 text-xs text-gray-400">Foliate reader — Coming soon (Phase 5)</p>
+    <main className="h-screen w-full overflow-hidden">
+      <ReaderView bookId={bookId} format={book.format} initialCfi={initialCfi ?? undefined} />
     </main>
   );
 }
