@@ -1,37 +1,56 @@
-# Feature: Auth
+# features/auth — Authentication & Authorization Surface
 
-## Responsibility Boundary
+## Phase 4 — Complete
 
-This feature owns all authentication UI and Server Actions:
+### Server Actions (`actions.ts`)
 
-- Sign-in / sign-up forms
-- Password reset (future)
-- Sign-out action
-- Pending-approval status display
+All return `ActionResult<T>` from `@/lib/result`. Never throw to the client.
 
-## Populated In
+| Action                                | Input           | Behavior                                                                                                                                     |
+| ------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `signUpAction(formData)`              | email, password | Registers via Supabase Auth; trigger creates unapproved profile. Redirects to /pending-approval on success.                                  |
+| `signInAction(formData, redirectTo?)` | email, password | Signs in; sets session cookie via SSR client. Redirects to `redirectTo` (same-origin only) or /dashboard. Generic invalid-credentials error. |
+| `signOutAction()`                     | —               | Signs out; redirects to /login.                                                                                                              |
 
-- **Phase 4**: Login form, register form, Server Actions calling `@supabase/ssr`
-- **Phase 4**: Sign-out Server Action, pending-approval page logic
-- **Phase 4**: Admin user-approval Server Actions (using `createAdminClient`)
+### Session Helpers (`session.ts`) — `server-only`
 
-## Directory Structure (to be created in Phase 4)
+The canonical server-side authorization utilities. **Every protected feature must use these.**
 
+| Helper              | Returns                 | Use case                                                  |
+| ------------------- | ----------------------- | --------------------------------------------------------- |
+| `getSession()`      | `Session \| null`       | Raw session (prefer getClaims for auth logic)             |
+| `getClaims()`       | `Claims \| null`        | Decoded top-level JWT claims (fail-closed if hook absent) |
+| `requireApproved()` | `Claims` (or redirects) | Guard in `(app)/*` layouts and protected Server Actions   |
+| `requireAdmin()`    | `Claims` (or redirects) | Guard in `admin/*` layouts and admin Server Actions       |
+
+**`Claims` type:** `{ userId: string; isApproved: boolean; isAdmin: boolean }`
+
+### Schemas (`schemas.ts`)
+
+- `credentialsSchema` — email + password (min 8, max 72 chars)
+- `registerSchema` — same as credentials for MVP
+
+### Components (`components/`)
+
+| Component       | Kind           | Purpose                                                |
+| --------------- | -------------- | ------------------------------------------------------ |
+| `LoginForm`     | `'use client'` | `useActionState` + `signInAction`, inline errors       |
+| `RegisterForm`  | `'use client'` | `useActionState` + `signUpAction`, redirect to pending |
+| `SignOutButton` | `'use client'` | Form wrapping `signOutAction`                          |
+
+### Authorization Contract
+
+Every protected Server Action in this project must begin with:
+
+```ts
+await requireApproved(); // or requireAdmin() for admin-only actions
 ```
-features/auth/
-├── components/
-│   ├── login-form.tsx      # 'use client' — controlled form
-│   └── register-form.tsx   # 'use client'
-└── actions/
-    ├── sign-in.ts           # Server Action
-    ├── sign-up.ts           # Server Action
-    ├── sign-out.ts          # Server Action
-    └── approve-user.ts      # Server Action (admin only)
-```
 
-## Cross-Feature Dependencies
+This is established in `setUserApprovalAction` (see `features/admin/actions.ts`) and must be followed by all future feature phases.
 
-- `@/lib/supabase/server` — authenticated server actions
-- `@/lib/supabase/admin` — `createAdminClient` for approval mutations
-- `@/lib/routes` — `ROUTES` for post-auth redirects
-- `@/lib/result` — `ActionResult` return type
+### Security Notes
+
+- Generic auth error messages prevent user enumeration.
+- `redirectTo` is sanitized to same-origin paths only (prevents open redirect).
+- Claims are baked into the JWT by the Phase 3 hook — no DB round-trip in middleware.
+- Authorization at three layers: middleware (edge) → layout guard → action-level check.

@@ -1,19 +1,27 @@
-// Server Component — placeholder
-// Phase 4 will add a real auth redirect to ROUTES.DASHBOARD once auth middleware exists.
-import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { getClaims } from '@/features/auth/session';
 import { ROUTES } from '@/lib/routes';
 
-export default function Home() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
-      <h1 className="text-4xl font-bold">EPUB Reader</h1>
-      <p className="text-lg text-gray-600">Bootstrap complete.</p>
-      <Link
-        href={ROUTES.DASHBOARD}
-        className="mt-2 rounded-md bg-foreground px-6 py-2 text-sm font-medium text-background hover:opacity-90"
-      >
-        Go to Library →
-      </Link>
-    </main>
-  );
+/**
+ * Root page — server-side redirect based on auth state.
+ *
+ * Approved user → /dashboard
+ * Authenticated but unapproved → /pending-approval
+ * Unauthenticated → /login
+ *
+ * Per ISD §4.G: this is a plain server component; middleware guards protect the
+ * downstream routes independently.
+ */
+export default async function RootPage() {
+  const claims = await getClaims();
+
+  if (!claims) {
+    redirect(ROUTES.LOGIN);
+  }
+
+  if (!claims.isApproved) {
+    redirect(ROUTES.PENDING_APPROVAL);
+  }
+
+  redirect(ROUTES.DASHBOARD);
 }
