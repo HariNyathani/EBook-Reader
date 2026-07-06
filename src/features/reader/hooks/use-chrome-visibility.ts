@@ -98,25 +98,11 @@ export function useChromeVisibility(): UseChromeVisibilityResult {
     }
   }, [chromeVisible, hide, reveal]);
 
-  // Reveal on user interaction. Each of these listeners calls `reveal`
-  // (idempotent) so they collectively reset the idle timer.
+  // Removed window event listeners (mousemove, touchstart, keydown, etc).
+  // In Kindle format, the UI only appears explicitly when you tap the center zone
+  // or press a dedicated shortcut key, avoiding annoying pop-ups on page turns.
   useEffect(() => {
-    if (!isReady) return;
-
-    const onActivity = () => reveal();
-    window.addEventListener('mousemove', onActivity, { passive: true });
-    window.addEventListener('touchstart', onActivity, { passive: true });
-    window.addEventListener('keydown', onActivity);
-    window.addEventListener('wheel', onActivity, { passive: true });
-    window.addEventListener('scroll', onActivity, { passive: true });
-
-    return () => {
-      window.removeEventListener('mousemove', onActivity);
-      window.removeEventListener('touchstart', onActivity);
-      window.removeEventListener('keydown', onActivity);
-      window.removeEventListener('wheel', onActivity);
-      window.removeEventListener('scroll', onActivity);
-    };
+    // We keep the effect empty so we don't break hook dependencies.
   }, [isReady, reveal]);
 
   // Whenever the panel state changes, the chrome is forced visible (so

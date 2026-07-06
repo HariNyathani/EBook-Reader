@@ -24,15 +24,15 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       : undefined;
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white px-8 py-10 shadow-md ring-1 ring-gray-200">
+    <main className="flex min-h-screen flex-col items-center justify-center p-4">
+      <div className="w-full max-w-sm rounded-3xl glass-panel px-8 py-10 shadow-glass">
         {/* Logo / brand */}
         <div className="mb-8 text-center">
-          <span className="text-3xl" aria-hidden="true">
-            📚
+          <span className="text-4xl" aria-hidden="true">
+            📖
           </span>
-          <h1 className="mt-3 text-2xl font-bold tracking-tight text-gray-900">Welcome back</h1>
-          <p className="mt-1 text-sm text-gray-500">Sign in to your reading library</p>
+          <h1 className="mt-4 text-2xl font-bold tracking-tight text-gray-900">Welcome to Librea</h1>
+          <p className="mt-1 text-sm text-gray-500 font-medium">Sign in to your reading library</p>
         </div>
 
         <Suspense>

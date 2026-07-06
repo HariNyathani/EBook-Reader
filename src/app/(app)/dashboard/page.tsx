@@ -80,10 +80,7 @@ export default async function DashboardPage({
 
       {/* Continue Reading Section */}
       {continueReading.length > 0 && (
-        <section>
-          <h2 className="mb-4 text-xl font-semibold text-gray-800">Continue Reading</h2>
-          <ContinueReading books={continueReading} />
-        </section>
+        <ContinueReading books={continueReading} />
       )}
 
       {/* Catalog Section */}

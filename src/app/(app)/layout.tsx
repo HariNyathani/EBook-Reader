@@ -43,31 +43,31 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <SkipLink />
 
           {/* Top navigation bar — landmark role=banner */}
-          <header role="banner" className="border-b border-gray-200 bg-white shadow-sm">
+          <header role="banner" className="sticky top-0 z-50 glass-panel border-b-0 border-white/40">
             <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
               <Link
                 href={ROUTES.DASHBOARD}
-                className="flex items-center gap-2 text-base font-semibold text-gray-900 hover:text-indigo-600"
+                className="flex items-center gap-2 text-xl font-bold tracking-tight text-gray-900 transition-transform hover:scale-105"
               >
-                <span aria-hidden="true">📚</span>
-                <span>EPUB Reader</span>
+                <span aria-hidden="true">📖</span>
+                <span>Librea</span>
               </Link>
 
               <div className="flex items-center gap-3">
-                <span className="hidden text-xs text-gray-400 sm:block">
+                <span className="hidden text-xs font-semibold uppercase tracking-wider text-gray-400 sm:block">
                   {claims.isAdmin ? '👑 Admin' : ''}
                 </span>
                 {claims.isAdmin && (
                   <Link
                     href={ROUTES.ADMIN_APPROVALS}
-                    className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100"
+                    className="rounded-full px-4 py-2 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-100 hover:text-gray-900"
                   >
                     Admin
                   </Link>
                 )}
                 <Link
                   href={ROUTES.SETTINGS}
-                  className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100"
+                  className="rounded-full px-4 py-2 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-100 hover:text-gray-900"
                 >
                   Settings
                 </Link>

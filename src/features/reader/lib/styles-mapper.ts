@@ -81,7 +81,7 @@ export function mapStyleToCss(style: ReaderStyle): string {
   // always reflects the chosen theme even if the EPUB forces a transparent
   // body background.
   return [
-    `html, body { background: ${bg} !important; color: ${fg} !important; }`,
+    `html, body { background: ${bg} !important; color: ${fg} !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }`,
     `${TYPOGRAPHY_SELECTORS} {`,
     `  font-family: ${fontFamily} !important;`,
     `  font-size: ${fontSizePx}px !important;`,

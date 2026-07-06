@@ -113,8 +113,30 @@ export class FoliateEngine implements ReaderEngine {
     // Attach event listeners. foliate-js emits `load` for every section
     // that finishes loading, and `relocate` on every visible-page change.
     this.#boundListeners.load = (e: Event) => {
-      // (no-op for the event detail — kept silent)
-      void e;
+      const detail = (e as CustomEvent<{ doc?: Document; index?: number }>).detail;
+      
+      // Bridge keyboard events from the sandboxed iframe back to the parent window.
+      // This fixes the bug where clicking inside the ebook steals focus and breaks
+      // reader keyboard shortcuts (like arrow keys for navigation).
+      if (detail?.doc) {
+        detail.doc.addEventListener('keydown', (ev: KeyboardEvent) => {
+          const cloned = new KeyboardEvent('keydown', {
+            key: ev.key,
+            code: ev.code,
+            bubbles: true,
+            cancelable: true,
+            ctrlKey: ev.ctrlKey,
+            shiftKey: ev.shiftKey,
+            altKey: ev.altKey,
+            metaKey: ev.metaKey,
+          });
+          window.dispatchEvent(cloned);
+          if (cloned.defaultPrevented) {
+            ev.preventDefault();
+          }
+        });
+      }
+
       // foliate-js emits `load` for EVERY section that finishes loading
       // (i.e. on every chapter navigation), so we must guard: only the FIRST
       // load is our 'ready' signal. Subsequent section loads are already

@@ -68,46 +68,50 @@ function BookCardWrapper({ book, userId }: BookCardWrapperProps) {
   const actionLabel = book.inLibrary ? 'Remove from library' : 'Add to library';
 
   return (
-    <div className="relative">
+    <div className="relative group">
       <BookCard
         title={book.title}
         author={book.author}
         coverSrc={book.cover_key ? `/api/covers/${book.id}` : undefined}
         availableOffline={isDownloaded}
+        coverOverlay={
+          <>
+            {/* Progress badge overlay */}
+            {book.percentage > 0 && (
+              <div className="absolute right-2 top-2">
+                <ProgressBadge percentage={book.percentage} />
+              </div>
+            )}
+            {/* Action buttons overlay */}
+            <div className="absolute bottom-2 left-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-300">
+              <div className="flex gap-2">
+                <Link
+                  href={ROUTES.READER(book.id)}
+                  className="flex-1 rounded-lg bg-gray-900/90 backdrop-blur-md px-3 py-2 text-center text-xs font-semibold text-white shadow-glass transition-all hover:bg-black hover:scale-[1.02]"
+                >
+                  Read
+                </Link>
+                <button
+                  onClick={handleAddRemove}
+                  disabled={isPending}
+                  className="rounded-lg bg-white/90 backdrop-blur-md px-3 py-2 text-xs font-semibold text-gray-900 shadow-glass transition-all hover:bg-white hover:scale-[1.02] disabled:opacity-50"
+                  aria-busy={isPending}
+                  title={book.inLibrary ? 'Remove from library' : 'Add to library'}
+                >
+                  {actionLabel}
+                </button>
+              </div>
+              <OfflineToggle
+                bookId={book.id}
+                title={book.title}
+                author={book.author}
+                userId={userId}
+                compact
+              />
+            </div>
+          </>
+        }
       />
-      {/* Progress badge overlay */}
-      {book.percentage > 0 && (
-        <div className="absolute right-2 top-2">
-          <ProgressBadge percentage={book.percentage} />
-        </div>
-      )}
-      {/* Action buttons overlay */}
-      <div className="absolute bottom-2 left-2 right-2 flex flex-col gap-1">
-        <div className="flex gap-2">
-          <Link
-            href={ROUTES.READER(book.id)}
-            className="flex-1 rounded-lg bg-blue-600 px-3 py-1.5 text-center text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
-          >
-            Read
-          </Link>
-          <button
-            onClick={handleAddRemove}
-            disabled={isPending}
-            className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm ring-1 ring-gray-300 transition-colors hover:bg-gray-50 disabled:opacity-50"
-            aria-busy={isPending}
-            title={book.inLibrary ? 'Remove from library' : 'Add to library'}
-          >
-            {actionLabel}
-          </button>
-        </div>
-        <OfflineToggle
-          bookId={book.id}
-          title={book.title}
-          author={book.author}
-          userId={userId}
-          compact
-        />
-      </div>
     </div>
   );
 }

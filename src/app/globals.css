@@ -3,20 +3,43 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #fafafa;
+  --foreground: #09090b;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  /* Optional: soft mesh gradient for pure glassmorphism backdrop */
+  background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,0.03) 0, transparent 50%), 
+                    radial-gradient(at 50% 0%, hsla(225,39%,30%,0.03) 0, transparent 50%), 
+                    radial-gradient(at 100% 0%, hsla(339,49%,30%,0.03) 0, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* Ensure all form inputs always use dark text so it doesn't blend into white backgrounds */
+input, textarea, select {
+  color: #09090b !important;
+}
+input::placeholder, textarea::placeholder {
+  color: #a1a1aa !important;
+}
+
+/* Glassmorphism utilities */
+.glass-panel {
+  @apply bg-white/60 backdrop-blur-xl border border-white/20 shadow-glass;
+}
+.dark .glass-panel {
+  @apply bg-black/40 border-white/10;
+}
+
+/* Hide scrollbar for horizontal scrolling containers */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* ----------------------------------------------------------------------------
