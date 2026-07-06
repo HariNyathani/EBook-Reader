@@ -32,7 +32,7 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
       {state.status === 'error' && (
         <div
           role="alert"
-          className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          className="rounded-2xl border border-red-200/60 bg-red-50/70 px-4 py-3 text-sm font-medium text-red-700 backdrop-blur-md"
         >
           {state.message}
         </div>
@@ -49,7 +49,7 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
           autoComplete="email"
           required
           disabled={isPending}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:bg-gray-50"
+          className="glass-inset rounded-2xl px-4 py-2.5 text-sm placeholder:text-gray-400 focus:bg-white/80 focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:cursor-not-allowed disabled:opacity-60"
           placeholder="you@example.com"
         />
       </div>
@@ -65,7 +65,7 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
           autoComplete="current-password"
           required
           disabled={isPending}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:bg-gray-50"
+          className="glass-inset rounded-2xl px-4 py-2.5 text-sm placeholder:text-gray-400 focus:bg-white/80 focus:outline-none focus:ring-2 focus:ring-accent/30 disabled:cursor-not-allowed disabled:opacity-60"
           placeholder="••••••••"
         />
       </div>
@@ -73,14 +73,14 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
       <button
         type="submit"
         disabled={isPending}
-        className="mt-1 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+        className="accent-gradient mt-1 rounded-full px-4 py-2.5 text-sm font-semibold text-white shadow-accent-glow transition-all hover:brightness-110 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isPending ? 'Signing in…' : 'Sign in'}
       </button>
 
       <p className="text-center text-sm text-gray-500">
         No account?{' '}
-        <Link href={ROUTES.REGISTER} className="font-medium text-indigo-600 hover:text-indigo-700">
+        <Link href={ROUTES.REGISTER} className="font-semibold text-accent hover:brightness-110">
           Create one
         </Link>
       </p>

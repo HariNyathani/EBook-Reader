@@ -38,41 +38,38 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div
           data-user-id={claims.userId}
           data-user-approved={claims.isApproved ? 'true' : 'false'}
-          className="flex min-h-screen flex-col bg-gray-50"
+          className="flex min-h-screen flex-col"
         >
           <SkipLink />
 
-          {/* Top navigation bar — landmark role=banner */}
-          <header role="banner" className="sticky top-0 z-50 glass-panel border-b-0 border-white/40">
-            <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+          {/* Floating liquid-glass navigation pill — landmark role=banner */}
+          <header role="banner" className="sticky top-3 z-50 px-3 sm:top-4 sm:px-6">
+            <div className="liquid-glass mx-auto flex max-w-7xl items-center justify-between rounded-full py-2 pl-5 pr-2 sm:pl-6 sm:pr-2.5">
               <Link
                 href={ROUTES.DASHBOARD}
-                className="flex items-center gap-2 text-xl font-bold tracking-tight text-gray-900 transition-transform hover:scale-105"
+                className="flex items-center gap-2 text-lg font-bold tracking-tight text-gray-900 transition-transform hover:scale-105"
               >
                 <span aria-hidden="true">📖</span>
                 <span>Librea</span>
               </Link>
 
-              <div className="flex items-center gap-3">
-                <span className="hidden text-xs font-semibold uppercase tracking-wider text-gray-400 sm:block">
-                  {claims.isAdmin ? '👑 Admin' : ''}
-                </span>
+              <div className="flex items-center gap-1 sm:gap-1.5">
                 {claims.isAdmin && (
                   <Link
                     href={ROUTES.ADMIN_APPROVALS}
-                    className="rounded-full px-4 py-2 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-100 hover:text-gray-900"
+                    className="rounded-full px-3 py-2 text-sm font-semibold text-gray-600 transition-all hover:bg-white/70 hover:text-gray-900 hover:shadow-sm sm:px-4"
                   >
                     Admin
                   </Link>
                 )}
                 <Link
                   href={ROUTES.SETTINGS}
-                  className="rounded-full px-4 py-2 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-100 hover:text-gray-900"
+                  className="rounded-full px-3 py-2 text-sm font-semibold text-gray-600 transition-all hover:bg-white/70 hover:text-gray-900 hover:shadow-sm sm:px-4"
                 >
                   Settings
                 </Link>
                 <InstallSlot />
-                <SignOutButton />
+                <SignOutButton className="rounded-full px-3 py-2 text-sm font-semibold text-gray-600 transition-all hover:bg-white/70 hover:text-gray-900 hover:shadow-sm sm:px-4" />
               </div>
             </div>
           </header>
@@ -85,7 +82,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             id="main-content"
             tabIndex={-1}
             role="main"
-            className="flex-1 px-4 py-6 focus:outline-none sm:px-6"
+            className="flex-1 px-4 py-8 focus:outline-none sm:px-6"
           >
             {children}
           </main>

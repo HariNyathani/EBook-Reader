@@ -132,14 +132,14 @@ interface ReaderActions {
 
 const DEFAULT_STATE: ReaderState = {
   theme: 'light',
-  fontSize: 18,
-  margin: 20,
+  fontSize: 20,
+  margin: 0,
   currentCfi: null,
   isReady: false,
   // Phase 9 defaults for typography
-  fontFamily: 'Georgia, serif',
+  fontFamily: 'Bookerly, "Amazon Ember", Georgia, serif',
   lineHeight: 1.5,
-  textAlign: 'start',
+  textAlign: 'justify',
   columns: 'auto',
   // Phase 9 transient state defaults
   toc: [],

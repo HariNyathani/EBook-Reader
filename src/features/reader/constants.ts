@@ -64,6 +64,7 @@ export const TAP_MAX_MS = 250;
  * Each is a valid CSS font-family value.
  */
 export const FONT_FAMILY_OPTIONS: ReadonlyArray<{ label: string; value: string }> = [
+  { label: 'Bookerly', value: 'Bookerly, "Amazon Ember", Georgia, serif' },
   { label: 'Serif', value: 'Georgia, "Times New Roman", serif' },
   { label: 'Sans-serif', value: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' },
   { label: 'Monospace', value: 'ui-monospace, "SF Mono", Menlo, monospace' },

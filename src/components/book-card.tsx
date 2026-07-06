@@ -32,19 +32,20 @@ export function BookCard({
         className,
       )}
     >
-      {/* Cover area */}
-      <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden shadow-book group-hover:shadow-book-hover transition-shadow duration-300">
+      {/* Cover area — glossy glass slab with a specular sweep on hover */}
+      <div className="gloss-sweep relative aspect-[2/3] w-full rounded-2xl overflow-hidden shadow-book group-hover:shadow-book-hover transition-shadow duration-300">
         {coverSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={coverSrc} alt={`Cover of ${title}`} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gray-100 p-4 text-center text-xs text-gray-400">
+          <div className="glass-panel flex h-full w-full items-center justify-center p-4 text-center text-xs text-gray-400">
             No cover
           </div>
         )}
-        
-        {/* Soft inner shadow for depth */}
-        <div className="absolute inset-0 ring-1 ring-inset ring-black/5 rounded-xl pointer-events-none" />
+
+        {/* Glass edge: hairline ring + specular top highlight for depth */}
+        <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/25" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-white/50" />
 
         {availableOffline && (
           <div
@@ -72,7 +73,7 @@ export function BookCard({
         <div className="pt-2 px-1">
           <button
             onClick={onOpen}
-            className="w-full rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-200"
+            className="glass-panel w-full rounded-full px-3 py-1.5 text-xs font-semibold text-gray-700 transition-all hover:bg-white/80 hover:text-gray-900 hover:shadow-glass-hover active:scale-[0.98]"
           >
             Open
           </button>

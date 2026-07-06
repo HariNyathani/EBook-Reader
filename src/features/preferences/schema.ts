@@ -60,11 +60,11 @@ export type Preferences = z.infer<typeof preferencesSchema>;
  */
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = Object.freeze({
   theme: 'light',
-  fontFamily: 'Georgia, serif',
-  fontSize: 18,
+  fontFamily: 'Bookerly, "Amazon Ember", Georgia, serif',
+  fontSize: 20,
   lineHeight: 1.5,
-  margin: 20,
-  textAlign: 'start',
+  margin: 0,
+  textAlign: 'justify',
   columns: 'auto',
 });
 

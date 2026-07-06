@@ -32,6 +32,7 @@ import { ReaderLoading } from './reader-loading';
 import { ReaderError } from './reader-error';
 import type { BookFormat } from '../engine/types';
 import { useReaderStore } from '@/store/reader-store';
+import { useUiStore } from '@/store/ui-store';
 import { themePalette } from '../lib/styles-mapper';
 import { useReaderAnnouncer } from '@/features/a11y/use-reader-announcer';
 
@@ -140,6 +141,11 @@ export default function ReaderView({
   const isReady = useReaderStore((s) => s.isReady);
   const showLoading = !isReady && !error;
 
+  // Click-outside handling for the floating settings popovers.
+  const activePanel = useUiStore((s) => s.activePanel);
+  const setActivePanel = useUiStore((s) => s.setActivePanel);
+  const showPopoverBackdrop = activePanel === 'typography' || activePanel === 'theme';
+
   return (
     <div
       ref={rootRef}
@@ -168,6 +174,24 @@ export default function ReaderView({
       {/* Drawers / panels. */}
       <TocDrawer onNavigate={(href) => void goTo(href)} />
       <SearchPanel search={search} goTo={goTo} />
+
+      {/*
+        Click-outside backdrop for the settings popovers (typography/theme).
+        Unlike the TOC/Search drawers (which already render their own
+        full-screen backdrop), these popovers float over the foliate-js
+        iframe with nothing behind them. Because clicks inside the iframe
+        never bubble to a document-level listener, tapping the book text
+        can't close them. This transparent, fixed layer sits below the
+        popover (z-40) but above the engine iframe and catches those clicks.
+      */}
+      {showPopoverBackdrop ? (
+        <div
+          className="fixed inset-0 z-30"
+          aria-hidden="true"
+          onClick={() => setActivePanel('none')}
+        />
+      ) : null}
+
       <SettingsPopover mode="typography" />
       <SettingsPopover mode="theme" />
 

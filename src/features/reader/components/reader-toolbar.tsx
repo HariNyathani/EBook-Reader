@@ -12,7 +12,7 @@
  * screen readers announce the controls.
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { ROUTES } from '@/lib/routes';
 import { useUiStore } from '@/store/ui-store';
@@ -53,19 +53,6 @@ export function ReaderToolbar({ title, isFullscreen, onToggleFullscreen }: Reade
   const activePanel = useUiStore((s) => s.activePanel);
   const togglePanel = useUiStore((s) => s.togglePanel);
   const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [isOpen]);
 
   const handleAction = (action: () => void) => {
     action();
@@ -73,32 +60,46 @@ export function ReaderToolbar({ title, isFullscreen, onToggleFullscreen }: Reade
   };
 
   return (
-    <div className="relative" ref={menuRef}>
-      {/* The main title button */}
+    <div className="relative">
+      {/* The main title button — plain, unobtrusive text (Kindle-style). */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 rounded-full px-6 py-2 text-sm font-semibold tracking-wide transition-all hover:scale-105 active:scale-95"
+        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium tracking-wide opacity-60 transition-opacity hover:opacity-100"
       >
-        <span>{title ?? 'Reading'}</span>
+        <span className="max-w-[60vw] truncate">{title ?? 'Reading'}</span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          width={16}
-          height={16}
+          width={14}
+          height={14}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
           strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
-          className={cn('transition-transform duration-200', isOpen && 'rotate-180')}
+          className={cn('shrink-0 transition-transform duration-200', isOpen && 'rotate-180')}
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
 
-      {/* The dropdown menu */}
+      {/*
+        Click-outside backdrop. The book text renders inside a foliate-js
+        iframe, so clicks there never reach a document-level `mousedown`
+        listener. This transparent, fixed backdrop sits behind the dropdown
+        and catches those clicks (and any outside click) to close the menu.
+      */}
       {isOpen && (
-        <div className="absolute left-1/2 mt-4 w-64 -translate-x-1/2 overflow-hidden rounded-2xl bg-white text-gray-900 p-2 shadow-2xl ring-1 ring-black/5 dark:bg-zinc-900 dark:text-gray-100 dark:ring-white/10">
+        <div
+          className="fixed inset-0 z-40"
+          aria-hidden="true"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
+      {/* The dropdown menu (above the backdrop). */}
+      {isOpen && (
+        <div className="absolute left-1/2 z-50 mt-4 w-64 -translate-x-1/2 overflow-hidden rounded-2xl bg-white text-gray-900 p-2 shadow-2xl ring-1 ring-black/5 dark:bg-zinc-900 dark:text-gray-100 dark:ring-white/10">
           <Link
             href={ROUTES.DASHBOARD}
             className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-950/30"

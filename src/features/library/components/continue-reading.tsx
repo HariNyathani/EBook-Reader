@@ -20,7 +20,7 @@ export function ContinueReading({ books }: ContinueReadingProps) {
 
   return (
     <section className="mb-12">
-      <h2 className="mb-6 text-xl font-bold tracking-tight text-gray-900">Continue Reading</h2>
+      <h2 className="mb-5 text-xl font-bold tracking-tight text-gray-900">Continue Reading</h2>
       <div className="flex gap-6 overflow-x-auto pb-6 snap-x -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar">
         {books.map((book) => {
           const coverUrl = book.cover_key ? `/api/covers/${book.id}` : null;
@@ -28,18 +28,18 @@ export function ContinueReading({ books }: ContinueReadingProps) {
             <Link
               key={book.id}
               href={ROUTES.READER(book.id)}
-              className="group relative flex-none w-72 sm:w-80 h-40 overflow-hidden rounded-2xl glass-panel shadow-glass hover:shadow-glass-hover transition-all duration-300 snap-center hover:scale-[1.02]"
+              className="group gloss-sweep relative flex-none w-72 sm:w-80 h-40 overflow-hidden rounded-3xl glass-panel hover:shadow-glass-hover transition-all duration-300 snap-center hover:scale-[1.02]"
             >
-              {/* Blurred background extracted from cover */}
+              {/* Blurred background extracted from cover — the "liquid" tint */}
               {coverUrl && (
-                <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
+                <div className="absolute inset-0 z-0 opacity-30 pointer-events-none">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={coverUrl} alt="" className="w-full h-full object-cover blur-2xl scale-110" />
+                  <img src={coverUrl} alt="" className="w-full h-full object-cover blur-2xl scale-110 saturate-150" />
                 </div>
               )}
               
               <div className="relative z-10 flex h-full items-center gap-4 p-4">
-                <div className="relative h-32 w-24 shrink-0 overflow-hidden rounded-lg shadow-book group-hover:shadow-book-hover transition-all duration-300">
+                <div className="relative h-32 w-24 shrink-0 overflow-hidden rounded-xl shadow-book group-hover:shadow-book-hover transition-all duration-300">
                   {coverUrl ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={coverUrl} alt={book.title} className="h-full w-full object-cover" />
@@ -60,9 +60,9 @@ export function ContinueReading({ books }: ContinueReadingProps) {
                       <span>Progress</span>
                       <span>{book.percentage}%</span>
                     </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/5 shadow-inner">
+                    <div className="glass-inset h-2 w-full overflow-hidden rounded-full">
                       <div
-                        className="h-full bg-gray-900 rounded-full transition-all duration-1000 ease-out"
+                        className="accent-gradient h-full rounded-full shadow-accent-glow transition-all duration-1000 ease-out"
                         style={{ width: `${book.percentage}%` }}
                       />
                     </div>

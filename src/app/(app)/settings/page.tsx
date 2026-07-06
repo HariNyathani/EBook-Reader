@@ -39,16 +39,18 @@ export default async function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
-      <header>
-        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-        <p className="mt-2 text-sm text-gray-600">
+      <header className="pt-2">
+        <h1 className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-500 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent">
+          Settings
+        </h1>
+        <p className="mt-2 text-sm font-medium text-gray-500">
           Your reading preferences are saved instantly and synced across devices.
         </p>
       </header>
 
       {/* Account info */}
-      <section className="rounded-lg border border-gray-200 bg-white p-5">
-        <h2 className="text-lg font-semibold text-gray-900">Account</h2>
+      <section className="glass-panel rounded-3xl p-6">
+        <h2 className="text-lg font-bold tracking-tight text-gray-900">Account</h2>
         <dl className="mt-3 space-y-2 text-sm">
           <div className="flex justify-between gap-3">
             <dt className="text-gray-500">Email</dt>
@@ -62,12 +64,12 @@ export default async function SettingsPage() {
           </div>
         </dl>
         <div className="mt-4">
-          <SignOutButton className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50" />
+          <SignOutButton className="glass-inset rounded-full px-5 py-2 text-sm font-semibold text-gray-700 transition-all hover:bg-white/80 hover:text-gray-900 active:scale-[0.98]" />
         </div>
       </section>
 
       {/* Reader preferences */}
-      <section className="rounded-lg border border-gray-200 bg-white p-5">
+      <section className="glass-panel rounded-3xl p-6">
         <Suspense fallback={<div className="text-sm text-gray-500">Loading…</div>}>
           <SettingsForm />
         </Suspense>

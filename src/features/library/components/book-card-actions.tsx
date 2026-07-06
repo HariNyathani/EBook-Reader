@@ -37,7 +37,7 @@ export function BookCardActions({ bookId, inLibrary }: BookCardActionsProps) {
     <button
       onClick={handleToggle}
       disabled={isPending}
-      className="rounded-lg bg-white px-6 py-3 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-300 transition-colors hover:bg-gray-50 disabled:opacity-50"
+      className="glass-panel rounded-full px-6 py-3 text-sm font-semibold text-gray-700 transition-all hover:bg-white/80 hover:text-gray-900 hover:shadow-glass-hover active:scale-[0.98] disabled:opacity-50"
       aria-busy={isPending}
     >
       {isPending ? '...' : inLibrary ? 'Remove from Library' : 'Add to Library'}

@@ -3,34 +3,156 @@
 @tailwind utilities;
 
 :root {
-  --background: #fafafa;
+  --background: #f4f5fb;
   --foreground: #09090b;
+
+  /* Liquid Glass material tokens (iOS 26-style) */
+  --glass-fill: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.72) 0%,
+    rgba(255, 255, 255, 0.44) 100%
+  );
+  --glass-border: rgba(255, 255, 255, 0.65);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.18);
+  --accent: #0a84ff;
+  --accent-gradient: linear-gradient(135deg, #0a84ff 0%, #5e5ce6 100%);
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  /* Optional: soft mesh gradient for pure glassmorphism backdrop */
-  background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,0.03) 0, transparent 50%), 
-                    radial-gradient(at 50% 0%, hsla(225,39%,30%,0.03) 0, transparent 50%), 
-                    radial-gradient(at 100% 0%, hsla(339,49%,30%,0.03) 0, transparent 50%);
-  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* ----------------------------------------------------------------------------
+ * Aurora ambient backdrop
+ *
+ * Liquid glass only reads as "glass" when there is color behind it to
+ * refract. A fixed, slowly-drifting aurora of soft iOS-hued blobs sits
+ * behind every page; panels blur + saturate it.
+ * ------------------------------------------------------------------------- */
+
+.aurora-bg {
+  position: fixed;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(80px) saturate(120%);
+  background:
+    radial-gradient(ellipse 42% 38% at 18% 12%, rgba(96, 165, 250, 0.4) 0%, transparent 70%),
+    radial-gradient(ellipse 38% 42% at 82% 8%, rgba(192, 132, 252, 0.33) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 40% at 85% 85%, rgba(103, 232, 249, 0.32) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 45% at 12% 88%, rgba(249, 168, 212, 0.3) 0%, transparent 70%),
+    radial-gradient(ellipse 30% 30% at 50% 50%, rgba(165, 180, 252, 0.18) 0%, transparent 70%);
+  animation: aurora-drift 24s ease-in-out infinite alternate;
+}
+
+@keyframes aurora-drift {
+  from {
+    transform: translate3d(-2%, -1.5%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(2%, 1.5%, 0) scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-bg {
+    animation: none;
+  }
 }
 
 /* Ensure all form inputs always use dark text so it doesn't blend into white backgrounds */
-input, textarea, select {
+input,
+textarea,
+select {
   color: #09090b !important;
 }
-input::placeholder, textarea::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: #a1a1aa !important;
 }
 
-/* Glassmorphism utilities */
+/* ----------------------------------------------------------------------------
+ * Liquid Glass materials
+ *
+ * .glass-panel   — the standard material. Frosted fill, saturation boost
+ *                  (the signature iOS trait: colors behind the glass pop),
+ *                  hairline light border, and a specular top edge.
+ * .liquid-glass  — heavier variant for floating chrome (nav, popovers).
+ * .glass-inset   — recessed wells (search fields, sliders, progress tracks).
+ * ------------------------------------------------------------------------- */
+
 .glass-panel {
-  @apply bg-white/60 backdrop-blur-xl border border-white/20 shadow-glass;
+  background: var(--glass-fill);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    0 8px 32px rgba(31, 38, 135, 0.1),
+    var(--glass-highlight);
 }
 .dark .glass-panel {
-  @apply bg-black/40 border-white/10;
+  background: linear-gradient(135deg, rgba(24, 24, 27, 0.7), rgba(24, 24, 27, 0.5));
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.liquid-glass {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.82) 0%,
+    rgba(255, 255, 255, 0.55) 100%
+  );
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  backdrop-filter: blur(32px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow:
+    0 12px 40px rgba(31, 38, 135, 0.14),
+    0 2px 8px rgba(31, 38, 135, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.glass-inset {
+  background: rgba(255, 255, 255, 0.45);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 1px 3px rgba(31, 38, 135, 0.08);
+}
+
+/* Gloss sweep — a diagonal specular sheen that slides across on hover.
+   Apply to a relatively-positioned, overflow-hidden element. */
+.gloss-sweep::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.45) 50%,
+    transparent 60%
+  );
+  transform: translateX(-120%);
+  transition: transform 0.7s ease;
+}
+.group:hover .gloss-sweep::after,
+.gloss-sweep:hover::after {
+  transform: translateX(120%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .gloss-sweep::after {
+    display: none;
+  }
+}
+
+/* Accent (iOS blue → violet) gradient helper.
+   (Solid accent color utilities come from the Tailwind `accent` color.) */
+.accent-gradient {
+  background: var(--accent-gradient);
 }
 
 /* Hide scrollbar for horizontal scrolling containers */

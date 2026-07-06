@@ -12,13 +12,15 @@ export const metadata = {
  */
 export default function PendingApprovalPage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white px-8 py-10 text-center shadow-md ring-1 ring-gray-200">
-        <span className="text-4xl" aria-hidden="true">
+    <main className="flex min-h-screen flex-col items-center justify-center p-4">
+      <div className="liquid-glass w-full max-w-md rounded-4xl px-8 py-10 text-center">
+        <span className="inline-block text-4xl drop-shadow-md" aria-hidden="true">
           ⏳
         </span>
 
-        <h1 className="mt-4 text-2xl font-bold tracking-tight text-gray-900">Awaiting approval</h1>
+        <h1 className="mt-4 bg-gradient-to-br from-gray-900 to-gray-600 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent">
+          Awaiting approval
+        </h1>
 
         <p className="mt-3 text-sm leading-relaxed text-gray-600">
           Your account has been created. An administrator will review and approve it shortly.
@@ -33,7 +35,7 @@ export default function PendingApprovalPage() {
             Expecting access? Contact your library administrator.
           </p>
 
-          <SignOutButton className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50" />
+          <SignOutButton className="glass-panel rounded-full px-5 py-2 text-sm font-semibold text-gray-700 transition-all hover:bg-white/80 hover:text-gray-900 hover:shadow-glass-hover active:scale-[0.98]" />
         </div>
       </div>
     </main>

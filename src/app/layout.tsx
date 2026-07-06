@@ -21,6 +21,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="font-sans antialiased">
+        {/* Liquid-glass aurora backdrop — fixed behind every page; glass
+            panels blur + saturate it. The reader paints its own opaque
+            background over the full viewport, so it is unaffected. */}
+        <div className="aurora-bg" aria-hidden="true" />
         {children}
         {/* Phase 2: Registers /sw.js in production (no-op in dev unless NEXT_PUBLIC_SW_DEV=true) */}
         <ServiceWorkerRegistrar />

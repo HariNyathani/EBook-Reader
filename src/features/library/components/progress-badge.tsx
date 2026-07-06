@@ -9,7 +9,7 @@ interface ProgressBadgeProps {
 export function ProgressBadge({ percentage }: ProgressBadgeProps) {
   if (percentage === 0) {
     return (
-      <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+      <span className="glass-inset inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold text-gray-600">
         Not started
       </span>
     );
@@ -17,14 +17,14 @@ export function ProgressBadge({ percentage }: ProgressBadgeProps) {
 
   const colorClass =
     percentage === 100
-      ? 'bg-green-100 text-green-800'
+      ? 'bg-green-500/15 text-green-800 ring-green-500/25'
       : percentage >= 50
-        ? 'bg-blue-100 text-blue-800'
-        : 'bg-yellow-100 text-yellow-800';
+        ? 'bg-accent/15 text-blue-800 ring-accent/25'
+        : 'bg-amber-500/15 text-amber-800 ring-amber-500/25';
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${colorClass}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 backdrop-blur-md ${colorClass}`}
     >
       {Math.round(percentage)}%
     </span>

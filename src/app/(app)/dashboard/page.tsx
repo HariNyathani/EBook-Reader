@@ -61,11 +61,13 @@ export default async function DashboardPage({
   const totalPages = Math.ceil(catalog.total / 24);
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8">
+    <div className="mx-auto max-w-7xl space-y-10">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Your Library</h1>
-        <p className="mt-2 text-sm text-gray-600">
+      <div className="pt-2">
+        <h1 className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-500 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent">
+          Your Library
+        </h1>
+        <p className="mt-2 text-sm font-medium text-gray-500">
           Welcome back! Browse the catalog and manage your reading list.
         </p>
       </div>
@@ -73,7 +75,7 @@ export default async function DashboardPage({
       {/* My Library Section */}
       {myLibraryWithProgress.length > 0 && (
         <section>
-          <h2 className="mb-4 text-xl font-semibold text-gray-800">My Library</h2>
+          <h2 className="mb-5 text-xl font-bold tracking-tight text-gray-900">My Library</h2>
           <LibraryGrid books={myLibraryWithProgress} userId={claims.userId} />
         </section>
       )}
@@ -85,7 +87,7 @@ export default async function DashboardPage({
 
       {/* Catalog Section */}
       <section>
-        <h2 className="mb-4 text-xl font-semibold text-gray-800">Browse Catalog</h2>
+        <h2 className="mb-5 text-xl font-bold tracking-tight text-gray-900">Browse Catalog</h2>
         <Suspense fallback={<div>Loading...</div>}>
           <CatalogToolbar />
         </Suspense>
@@ -108,22 +110,25 @@ export default async function DashboardPage({
               <LibraryGrid books={catalogWithProgress} userId={claims.userId} />
             </div>
 
-            {/* Pagination */}
+            {/* Pagination — floating glass pill */}
             {totalPages > 1 && (
-              <div className="mt-8 flex items-center justify-center gap-2">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <a
-                    key={page}
-                    href={`?page=${page}${catalogParams.query ? `&query=${encodeURIComponent(catalogParams.query)}` : ''}&sort=${catalogParams.sort}`}
-                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                      page === catalogParams.page
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    {page}
-                  </a>
-                ))}
+              <div className="mt-10 flex justify-center">
+                <nav className="glass-panel flex items-center gap-1 rounded-full p-1.5" aria-label="Pagination">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <a
+                      key={page}
+                      href={`?page=${page}${catalogParams.query ? `&query=${encodeURIComponent(catalogParams.query)}` : ''}&sort=${catalogParams.sort}`}
+                      aria-current={page === catalogParams.page ? 'page' : undefined}
+                      className={`flex h-9 min-w-9 items-center justify-center rounded-full px-3 text-sm font-semibold transition-all ${
+                        page === catalogParams.page
+                          ? 'accent-gradient text-white shadow-accent-glow'
+                          : 'text-gray-600 hover:bg-white/70 hover:text-gray-900 hover:shadow-sm'
+                      }`}
+                    >
+                      {page}
+                    </a>
+                  ))}
+                </nav>
               </div>
             )}
           </>

@@ -42,10 +42,10 @@ export function CatalogToolbar() {
   }));
 
   return (
-    <div className="sticky top-4 z-20 mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-2 rounded-2xl glass-panel">
-      <div className="relative flex-1 max-w-md ml-2">
+    <div className="sticky top-20 z-20 mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-2 rounded-3xl liquid-glass">
+      <div className="relative flex-1 max-w-md ml-1">
         <label htmlFor="search" className="sr-only">Search books</label>
-        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 flex items-center pl-3.5 text-gray-400">
           <Search className="h-4 w-4" />
         </div>
         <input
@@ -54,7 +54,7 @@ export function CatalogToolbar() {
           placeholder="Search catalog..."
           defaultValue={currentQuery}
           onChange={(e) => handleSearch(e.target.value)}
-          className="w-full rounded-xl bg-white/50 border-white/40 pl-10 pr-4 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-black/5 transition-all shadow-sm"
+          className="glass-inset w-full rounded-full pl-10 pr-4 py-2 text-sm focus:bg-white/80 focus:outline-none focus:ring-2 focus:ring-accent/30 transition-all"
           aria-busy={isPending}
         />
       </div>
