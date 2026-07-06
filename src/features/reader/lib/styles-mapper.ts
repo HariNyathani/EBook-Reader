@@ -136,6 +136,7 @@ export function mapStateToStyle(state: {
   lineHeight: number;
   margin: number;
   textAlign: 'start' | 'justify';
+  columns: 'auto' | '1' | '2';
 }): ReaderStyle {
   return {
     theme: state.theme,
@@ -144,5 +145,6 @@ export function mapStateToStyle(state: {
     lineHeight: state.lineHeight,
     marginPct: state.margin,
     textAlign: state.textAlign,
+    columns: state.columns,
   };
 }

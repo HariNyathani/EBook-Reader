@@ -74,6 +74,12 @@ export class FoliateEngine implements ReaderEngine {
   } = {};
   #destroyed = false;
   #ready = false;
+  // The last style applied via setStyles(). Retained so the ResizeObserver
+  // can recompute the pixel-based 2-column split when the viewport changes.
+  #lastStyle: ReaderStyle | null = null;
+  // Observes the mount container so column layout tracks viewport resizes
+  // (rotation, window resize, side-panel open/close). Lazily created.
+  #resizeObserver: ResizeObserver | null = null;
 
   constructor(container: HTMLElement) {
     this.#container = container;
@@ -114,7 +120,7 @@ export class FoliateEngine implements ReaderEngine {
     // that finishes loading, and `relocate` on every visible-page change.
     this.#boundListeners.load = (e: Event) => {
       const detail = (e as CustomEvent<{ doc?: Document; index?: number }>).detail;
-      
+
       // Bridge keyboard events from the sandboxed iframe back to the parent window.
       // This fixes the bug where clicking inside the ebook steals focus and breaks
       // reader keyboard shortcuts (like arrow keys for navigation).
@@ -201,6 +207,13 @@ export class FoliateEngine implements ReaderEngine {
   destroy(): void {
     if (this.#destroyed) return;
     this.#destroyed = true;
+
+    // Stop observing viewport resizes.
+    if (this.#resizeObserver) {
+      this.#resizeObserver.disconnect();
+      this.#resizeObserver = null;
+    }
+    this.#lastStyle = null;
 
     // Remove event listeners.
     if (this.#view) {
@@ -293,16 +306,109 @@ export class FoliateEngine implements ReaderEngine {
         view.renderer.setStyles(css);
       }
 
-      // Map the `marginPct` (0..50 typically) to a pixel length. The
-      // paginator uses the `margin` attribute as the header/footer height,
-      // not the page margin per se — but it's the only layout knob that
-      // matches the intent of "give the text more breathing room".
-      const marginPx = Math.max(0, Math.round((window.innerHeight * style.marginPct) / 100));
-      view.renderer.setAttribute('margin', `${marginPx}px`);
+      // Set a fixed vertical margin (top and bottom) to 70px.
+      // This is large enough to ensure the top "Book Title" pill does not
+      // overlap the first line of text when the UI is visible.
+      view.renderer.setAttribute('margin', '70px');
+
+      // Use marginPct to squeeze the view horizontally. We halve the value
+      // so a max margin of 40 translates to 20% padding per side, which
+      // keeps the text from getting too narrow on large screens.
+      //
+      // NB: this padding shrinks the renderer's content box — which is the
+      // width the column math depends on — so it MUST be applied BEFORE we
+      // measure in #applyColumnLayout below.
+      const horizontalPadding = style.marginPct / 2;
+      view.style.paddingLeft = `${horizontalPadding}%`;
+      view.style.paddingRight = `${horizontalPadding}%`;
+
+      // Column layout. Runs last so the padding above is already reflected in
+      // the renderer's measured width. Remember the style so the
+      // ResizeObserver can recompute the pixel-based 2-column split on resize.
+      this.#lastStyle = style;
+      this.#applyColumnLayout(style);
+      this.#ensureResizeObserver();
     } catch (err) {
       // Style application is best-effort; don't crash the reader.
       console.error('[FoliateEngine] setStyles error:', err);
     }
+  }
+
+  /**
+   * Force the column layout for the current `columns` preference.
+   *
+   * Foliate's paginator picks its column count as
+   *   divisor = min(maxColumnCount, ceil(containerWidth / maxInlineSize))
+   * and ADDITIONALLY clamps to a separate `--_max-column-count-portrait`
+   * (hard-coded to 1 upstream) whenever its container is in portrait
+   * orientation. That portrait var is not reachable through the
+   * `max-column-count` attribute, so to genuinely force N columns we must
+   * set it directly on the paginator element — otherwise "2 columns" is
+   * silently ignored on phones / portrait tablets / tall windows.
+   *
+   * The 2-column split is derived from the renderer's OWN measured box
+   * (already shrunk by the horizontal padding), not window.innerWidth, so it
+   * matches the width foliate actually lays out into. Using innerWidth
+   * over-estimates the width and, at high margins or after a resize, silently
+   * collapses "2 columns" back to 1.
+   */
+  #applyColumnLayout(style: ReaderStyle): void {
+    const renderer = this.#view?.renderer;
+    if (!renderer) return;
+
+    if (style.columns === '1') {
+      // max-inline-size ≫ width → ceil(width / 9999) = 1; count clamps to 1.
+      renderer.setAttribute('max-inline-size', '9999px');
+      renderer.setAttribute('max-column-count', '1');
+      renderer.style.setProperty('--_max-column-count-portrait', '1');
+    } else if (style.columns === '2') {
+      // Halve the ACTUAL laid-out width so ceil(width / half) = 2 and the
+      // grid's max-width (half * 2) fills the container edge-to-edge.
+      const available = this.#measureRendererWidth();
+      const half = Math.max(1, Math.floor(available / 2));
+      renderer.setAttribute('max-inline-size', `${half}px`);
+      renderer.setAttribute('max-column-count', '2');
+      // Override foliate's portrait single-column clamp so 2 columns hold
+      // even when the reader container is in portrait orientation.
+      renderer.style.setProperty('--_max-column-count-portrait', '2');
+    } else {
+      // 'auto': restore foliate defaults — 720px per column, up to 2 columns,
+      // and its native portrait single-column behaviour.
+      renderer.setAttribute('max-inline-size', '720px');
+      renderer.setAttribute('max-column-count', '2');
+      renderer.style.removeProperty('--_max-column-count-portrait');
+    }
+  }
+
+  /**
+   * Measure the width the renderer actually lays out into (its padded
+   * content box), falling back to the host view element and finally the
+   * viewport if the element has not been measured yet.
+   */
+  #measureRendererWidth(): number {
+    const rendererWidth = this.#view?.renderer?.getBoundingClientRect().width ?? 0;
+    if (rendererWidth > 0) return rendererWidth;
+    const viewWidth = this.#view?.getBoundingClientRect().width ?? 0;
+    if (viewWidth > 0) return viewWidth;
+    return typeof window !== 'undefined' ? window.innerWidth : 0;
+  }
+
+  /**
+   * Lazily attach a ResizeObserver so the pixel-based 2-column split is
+   * recomputed when the viewport changes (window resize, rotation, panel
+   * toggles). Only the '2' branch depends on a measured pixel width; '1' and
+   * 'auto' use resize-agnostic values, so we skip the recompute — and its
+   * attribute write / re-render — for them.
+   */
+  #ensureResizeObserver(): void {
+    if (this.#resizeObserver || typeof ResizeObserver === 'undefined') return;
+    this.#resizeObserver = new ResizeObserver(() => {
+      const style = this.#lastStyle;
+      if (style && style.columns === '2') {
+        this.#applyColumnLayout(style);
+      }
+    });
+    this.#resizeObserver.observe(this.#container);
   }
 
   /**

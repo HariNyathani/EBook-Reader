@@ -44,12 +44,14 @@ export function TypographyPanel() {
   const lineHeight = useReaderStore((s) => s.lineHeight);
   const margin = useReaderStore((s) => s.margin);
   const textAlign = useReaderStore((s) => s.textAlign);
+  const columns = useReaderStore((s) => s.columns);
 
   const setFontFamily = useReaderStore((s) => s.setFontFamily);
   const setFontSize = useReaderStore((s) => s.setFontSize);
   const setLineHeight = useReaderStore((s) => s.setLineHeight);
   const setMargin = useReaderStore((s) => s.setMargin);
   const setTextAlign = useReaderStore((s) => s.setTextAlign);
+  const setColumns = useReaderStore((s) => s.setColumns);
 
   return (
     <div className="space-y-5">
@@ -178,6 +180,38 @@ export function TypographyPanel() {
               className={cn(
                 'flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
                 textAlign === opt.value
+                  ? 'border-blue-500 bg-blue-50 text-blue-700'
+                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      {/* Columns */}
+      <fieldset className="space-y-2">
+        <legend className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Columns
+        </legend>
+        <div role="radiogroup" aria-label="Column count" className="flex gap-2">
+          {(
+            [
+              { value: 'auto', label: 'Auto' },
+              { value: '1', label: '1 Column' },
+              { value: '2', label: '2 Columns' },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              role="radio"
+              aria-checked={columns === opt.value}
+              onClick={() => setColumns(opt.value)}
+              className={cn(
+                'flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors',
+                columns === opt.value
                   ? 'border-blue-500 bg-blue-50 text-blue-700'
                   : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
               )}

@@ -69,6 +69,8 @@ interface ReaderState {
   lineHeight: number;
   /** Text alignment ('start' for left-aligned, 'justify' for justified). */
   textAlign: TextAlign;
+  /** Column layout preference ('auto', '1', or '2'). */
+  columns: 'auto' | '1' | '2';
 
   // Phase 9 additions: Transient navigation state (populated by engine).
 
@@ -109,6 +111,7 @@ interface ReaderActions {
   setFontFamily: (fontFamily: string) => void;
   setLineHeight: (lineHeight: number) => void;
   setTextAlign: (textAlign: TextAlign) => void;
+  setColumns: (columns: 'auto' | '1' | '2') => void;
 
   // Phase 9 additions: Transient navigation setters (populated by engine).
   setToc: (toc: TocItem[]) => void;
@@ -137,6 +140,7 @@ const DEFAULT_STATE: ReaderState = {
   fontFamily: 'Georgia, serif',
   lineHeight: 1.5,
   textAlign: 'start',
+  columns: 'auto',
   // Phase 9 transient state defaults
   toc: [],
   fraction: 0,
@@ -163,6 +167,7 @@ const PREFERENCE_KEYS = [
   'lineHeight',
   'margin',
   'textAlign',
+  'columns',
 ] as const satisfies ReadonlyArray<keyof ReaderState>;
 
 /**
@@ -192,6 +197,7 @@ export const useReaderStore = create<ReaderState & ReaderActions>()(
       setFontFamily: (fontFamily) => set({ fontFamily }),
       setLineHeight: (lineHeight) => set({ lineHeight }),
       setTextAlign: (textAlign) => set({ textAlign }),
+      setColumns: (columns) => set({ columns }),
       // Phase 9 transient setters
       setToc: (toc) => set({ toc }),
       setFraction: (fraction) => set({ fraction }),

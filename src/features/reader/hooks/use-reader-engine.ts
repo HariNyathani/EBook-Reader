@@ -161,6 +161,7 @@ export function useReaderEngine({
         lineHeight: s.lineHeight,
         margin: s.margin,
         textAlign: s.textAlign,
+        columns: s.columns,
       }),
     );
   }, []);
@@ -327,7 +328,8 @@ export function useReaderEngine({
         state.fontSize !== prev.fontSize ||
         state.lineHeight !== prev.lineHeight ||
         state.margin !== prev.margin ||
-        state.textAlign !== prev.textAlign;
+        state.textAlign !== prev.textAlign ||
+        state.columns !== prev.columns;
       if (!changed) return;
       // Coalesce rapid slider changes into a single paint.
       cancelAnimationFrame(raf);

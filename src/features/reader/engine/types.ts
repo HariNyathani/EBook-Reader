@@ -38,6 +38,7 @@ export interface ReaderStyle {
   lineHeight: number;
   marginPct: number;
   textAlign: ReaderTextAlign;
+  columns: 'auto' | '1' | '2';
 }
 
 /**
@@ -85,22 +86,22 @@ export interface SearchResult {
  */
 export type ReaderEngineEvent =
   | {
-      type: 'ready';
-      /** Table of contents (empty if the book has no TOC). */
-      toc: TocItem[];
-      /** Total reading fraction denominator (for progress calculation). */
-      totalFraction: number;
-    }
+    type: 'ready';
+    /** Table of contents (empty if the book has no TOC). */
+    toc: TocItem[];
+    /** Total reading fraction denominator (for progress calculation). */
+    totalFraction: number;
+  }
   | {
-      type: 'relocate';
-      /** Current reading location. */
-      location: ReaderLocation;
-    }
+    type: 'relocate';
+    /** Current reading location. */
+    location: ReaderLocation;
+  }
   | {
-      type: 'error';
-      /** Error that occurred during load or rendering. */
-      error: Error;
-    };
+    type: 'error';
+    /** Error that occurred during load or rendering. */
+    error: Error;
+  };
 
 /**
  * ReaderEngine interface — the contract for all format-specific adapters.

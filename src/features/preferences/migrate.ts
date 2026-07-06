@@ -104,6 +104,14 @@ export function migratePreferences(input: unknown): ReaderPreferences {
   if (safeCandidate['textAlign'] === 'start' || safeCandidate['textAlign'] === 'justify') {
     result.textAlign = safeCandidate['textAlign'];
   }
+  // columns
+  if (
+    safeCandidate['columns'] === 'auto' ||
+    safeCandidate['columns'] === '1' ||
+    safeCandidate['columns'] === '2'
+  ) {
+    result.columns = safeCandidate['columns'];
+  }
 
   return result;
 }

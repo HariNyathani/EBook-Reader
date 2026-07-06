@@ -49,6 +49,7 @@ const PREFERENCE_KEYS: ReadonlyArray<keyof ReaderPreferences> = [
   'lineHeight',
   'margin',
   'textAlign',
+  'columns',
 ];
 
 /**
@@ -62,6 +63,7 @@ export function snapshotPreferences(state: {
   lineHeight: number;
   margin: number;
   textAlign: 'start' | 'justify';
+  columns: 'auto' | '1' | '2';
 }): ReaderPreferences {
   return {
     theme: state.theme,
@@ -70,6 +72,7 @@ export function snapshotPreferences(state: {
     lineHeight: state.lineHeight,
     margin: state.margin,
     textAlign: state.textAlign,
+    columns: state.columns,
   };
 }
 
@@ -212,6 +215,7 @@ function applyCloudToStore(reader: ReaderPreferences): void {
   if (store.lineHeight !== reader.lineHeight) store.setLineHeight(reader.lineHeight);
   if (store.margin !== reader.margin) store.setMargin(reader.margin);
   if (store.textAlign !== reader.textAlign) store.setTextAlign(reader.textAlign);
+  if (store.columns !== reader.columns) store.setColumns(reader.columns);
 }
 
 // ---------------------------------------------------------------------------

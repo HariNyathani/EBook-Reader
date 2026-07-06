@@ -31,6 +31,7 @@ export const readerPreferencesSchema = z.object({
   lineHeight: z.number().min(1).max(3),
   margin: z.number().min(0).max(80),
   textAlign: z.enum(['start', 'justify']),
+  columns: z.enum(['auto', '1', '2']),
 });
 
 export type ReaderPreferences = z.infer<typeof readerPreferencesSchema>;
@@ -64,6 +65,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = Object.freeze({
   lineHeight: 1.5,
   margin: 20,
   textAlign: 'start',
+  columns: 'auto',
 });
 
 /**
