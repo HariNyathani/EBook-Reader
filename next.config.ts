@@ -61,6 +61,13 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: (process.env['SERVER_ACTIONS_BODY_LIMIT'] ?? '50mb') as `${number}mb`,
     },
+    // Phase 14 (ISD §14.H): deliberately empty. Next auto-optimizes its
+    // built-in list, and none of our client deps are barrel-file-heavy
+    // (zustand/clsx/tailwind-merge/idb-keyval are tiny; zod has no barrel
+    // to prune). The one genuinely heavy client lib — vendored foliate-js —
+    // is code-split by hand: `import('@/vendor/foliate-js/foliate-view.js')`
+    // inside FoliateEngine.open(), behind a `next/dynamic({ ssr:false })`
+    // ReaderView, so it never enters the dashboard/library bundles.
     optimizePackageImports: [],
   },
 

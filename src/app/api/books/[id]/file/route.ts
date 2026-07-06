@@ -42,11 +42,13 @@ export async function GET(
     return new NextResponse('Forbidden', { status: 403 });
   }
 
-  // Step 3: Look up book (server client; RLS restricts to approved users)
+  // Step 3: Look up book (server client; RLS restricts to approved users).
+  // Column-pruned: this handler only needs the R2 key, and this route is on
+  // the reader's critical open path — don't drag the whole row over the wire.
   const supabase = await createClient();
-  const { data, error } = await supabase.from('books').select('*').eq('id', id).limit(1);
+  const { data, error } = await supabase.from('books').select('file_key').eq('id', id).limit(1);
 
-  const books = (data as Book[] | null) ?? [];
+  const books = (data as Pick<Book, 'file_key'>[] | null) ?? [];
 
   if (error || books.length === 0) {
     return new NextResponse('Not Found', { status: 404 });

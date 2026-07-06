@@ -17,6 +17,7 @@
  *   +/=              → increase font size
  *   -                → decrease font size
  *   c                → toggle chrome
+ *   f                → toggle fullscreen
  */
 
 import { useEffect } from 'react';
@@ -30,6 +31,8 @@ interface UseReaderControlsParams {
   prev: () => void;
   /** Toggle chrome (used by 'c'). */
   toggleChrome: () => void;
+  /** Toggle native fullscreen (used by 'f'). */
+  toggleFullscreen: () => void;
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -49,7 +52,12 @@ function keyOf(e: KeyboardEvent): string {
   return e.key.toLowerCase();
 }
 
-export function useReaderControls({ next, prev, toggleChrome }: UseReaderControlsParams): void {
+export function useReaderControls({
+  next,
+  prev,
+  toggleChrome,
+  toggleFullscreen,
+}: UseReaderControlsParams): void {
   // Store setters/actions (stable across renders).
   const setFontSize = useReaderStore((s) => s.setFontSize);
   const fontSize = useReaderStore((s) => s.fontSize);
@@ -132,6 +140,13 @@ export function useReaderControls({ next, prev, toggleChrome }: UseReaderControl
         toggleChrome();
         return;
       }
+
+      // Toggle fullscreen.
+      if ((SHORTCUTS.toggleFullscreen.keys as readonly string[]).includes(key)) {
+        e.preventDefault();
+        toggleFullscreen();
+        return;
+      }
     };
 
     window.addEventListener('keydown', handler);
@@ -140,6 +155,7 @@ export function useReaderControls({ next, prev, toggleChrome }: UseReaderControl
     next,
     prev,
     toggleChrome,
+    toggleFullscreen,
     closePanel,
     activePanel,
     openPanel,

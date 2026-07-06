@@ -128,9 +128,34 @@ export async function fetchBookBlob(
     if (err instanceof Error && err.name === 'AbortError') {
       throw new ReaderLoadError('Fetch aborted', 'NETWORK');
     }
+    // A bare `TypeError: Failed to fetch` means the request never produced
+    // an HTTP response at all — the browser rejected it before or during the
+    // network round-trip. The common causes are: no connectivity, DNS
+    // failure, or the request being blocked by Content-Security-Policy
+    // (connect-src). We surface a descriptive, actionable message with the
+    // original cause attached, so this is diagnosable instead of an opaque
+    // "Failed to fetch".
+    if (isFailedToFetch(err)) {
+      throw new ReaderLoadError(
+        `Could not reach the server to download this book (${url}). ` +
+          'You may be offline, or the request was blocked by the browser ' +
+          '(check the console for a Content-Security-Policy "connect-src" violation).',
+        'NETWORK',
+      );
+    }
     throw new ReaderLoadError(
       err instanceof Error ? err.message : 'Failed to fetch book',
       'NETWORK',
     );
   }
+}
+
+/**
+ * Detects the browser's opaque "Failed to fetch" rejection — a `TypeError`
+ * thrown by `fetch()` when the request never yields an HTTP response
+ * (offline, DNS failure, or a CSP `connect-src` block). Distinct from an
+ * HTTP error status (401/403/404/5xx), which resolves to a `Response`.
+ */
+function isFailedToFetch(err: unknown): boolean {
+  return err instanceof TypeError && /failed to fetch|load failed|networkerror/i.test(err.message);
 }

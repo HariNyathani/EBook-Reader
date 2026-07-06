@@ -20,6 +20,10 @@ import { cn } from '@/lib/utils/cn';
 interface ReaderToolbarProps {
   /** Optional book title (shown as the centered title on wide screens). */
   title?: string | null;
+  /** Whether the reader root is currently in native fullscreen. */
+  isFullscreen: boolean;
+  /** Toggles native fullscreen (V1.1). */
+  onToggleFullscreen: () => void;
 }
 
 interface IconButtonProps {
@@ -46,7 +50,7 @@ function IconButton({ label, active, onClick, children }: IconButtonProps) {
   );
 }
 
-export function ReaderToolbar({ title }: ReaderToolbarProps) {
+export function ReaderToolbar({ title, isFullscreen, onToggleFullscreen }: ReaderToolbarProps) {
   const activePanel = useUiStore((s) => s.activePanel);
   const togglePanel = useUiStore((s) => s.togglePanel);
 
@@ -183,6 +187,51 @@ export function ReaderToolbar({ title }: ReaderToolbarProps) {
           <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
           <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
         </svg>
+      </IconButton>
+
+      {/* Fullscreen */}
+      <IconButton
+        label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        active={isFullscreen}
+        onClick={onToggleFullscreen}
+      >
+        {isFullscreen ? (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width={20}
+            height={20}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="4 14 10 14 10 20" />
+            <polyline points="20 10 14 10 14 4" />
+            <line x1="14" y1="10" x2="21" y2="3" />
+            <line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+        ) : (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width={20}
+            height={20}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="15 3 21 3 21 9" />
+            <polyline points="9 21 3 21 3 15" />
+            <line x1="21" y1="3" x2="14" y2="10" />
+            <line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+        )}
       </IconButton>
     </div>
   );

@@ -139,6 +139,13 @@ export function useProgressSync(bookId: string): void {
     return () => {
       window.removeEventListener('pagehide', sendBeacon);
       document.removeEventListener('visibilitychange', handleVisibility);
+      // SPA navigation away unmounts the reader WITHOUT firing pagehide,
+      // and Effect 1's cleanup clears any pending debounce — so without
+      // this flush the last ≤3s of reading position would be lost when
+      // returning to the library. sendBeacon is a no-op until the first
+      // relocate (latestRef is null), so StrictMode's throwaway
+      // mount/unmount cycle sends nothing.
+      sendBeacon();
     };
   }, [bookId]);
 

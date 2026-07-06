@@ -97,6 +97,19 @@ export class FoliateEngine implements ReaderEngine {
     const view = document.createElement('foliate-view') as FoliateView;
     this.#view = view;
 
+    // Custom elements default to `display: inline` with no intrinsic size,
+    // and the vendored <foliate-view> ships NO `:host` sizing of its own
+    // (only its inner paginator is `height: 100%`). Without an explicit
+    // block box that fills the mount container, <foliate-view> collapses to
+    // zero height, the paginator renders into a 0×0 box, and the reader
+    // shows a BLANK screen (and, having no laid-out pages, emits relocate
+    // with fraction 0 — which is why the scrubber snapped back to 0%).
+    // The container is `absolute inset-0` inside an `h-screen` main, so it
+    // has real dimensions; we just need the element to fill it.
+    view.style.display = 'block';
+    view.style.width = '100%';
+    view.style.height = '100%';
+
     // Attach event listeners. foliate-js emits `load` for every section
     // that finishes loading, and `relocate` on every visible-page change.
     this.#boundListeners.load = (e: Event) => {
@@ -214,11 +227,17 @@ export class FoliateEngine implements ReaderEngine {
    */
   async goTo(target: string): Promise<void> {
     if (!this.#view) return;
-    // foliate-js's resolveNavigation is permissive — it handles CFIs, hrefs,
-    // and section indices. For our adapter, the public surface is a string,
-    // so we forward it as-is and rely on foliate-js to interpret it.
+    // foliate-js's resolveNavigation interprets targets by TYPE, not just
+    // value: a `string` is a CFI or href, a bare `number` is a *section
+    // index*, and only an object `{ fraction }` is an overall reading
+    // fraction. Our public surface is a string, and the progress scrubber
+    // passes an overall fraction as a numeric string (e.g. "0.15", "0",
+    // "1"). If we forwarded that verbatim it would fall through to
+    // `book.resolveHref("0.15")` and fail silently — the reader would not
+    // move and the bar would snap back. So we normalise a 0..1 fraction
+    // string into the `{ fraction }` form; CFIs and hrefs pass through.
     try {
-      await this.#view.goTo(target);
+      await this.#view.goTo(toFoliateTarget(target));
     } catch (err) {
       // foliate-js logs to console itself; surface a structured error to
       // the host so the React layer can react.
@@ -354,4 +373,26 @@ export class FoliateEngine implements ReaderEngine {
  */
 function formatExcerpt(excerpt: { pre: string; match: string; post: string }): string {
   return `${excerpt.pre}${excerpt.match}${excerpt.post}`;
+}
+
+/**
+ * Normalise a ReaderEngine `goTo` string target into the shape foliate-js
+ * expects. A numeric string in the range [0, 1] (what the progress scrubber
+ * sends) becomes an overall-reading-fraction object `{ fraction }`; any
+ * other string (CFI or href) is passed through unchanged.
+ *
+ * This is required because foliate's `resolveNavigation` keys off the target
+ * TYPE: a bare number is a section index and a numeric string resolves as an
+ * href — neither of which is "seek to 15% of the book". Only `{ fraction }`
+ * routes through `SectionProgress.getSection()`.
+ */
+export function toFoliateTarget(target: string): string | { fraction: number } {
+  // Looks like a plain decimal (e.g. "0", "1", "0.15", ".5")?
+  if (/^\s*\d*\.?\d+\s*$/.test(target)) {
+    const fraction = Number(target);
+    if (Number.isFinite(fraction) && fraction >= 0 && fraction <= 1) {
+      return { fraction };
+    }
+  }
+  return target;
 }

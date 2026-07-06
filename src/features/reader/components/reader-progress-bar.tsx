@@ -47,6 +47,12 @@ export function ReaderProgressBar({ goTo, bookTitle }: ReaderProgressBarProps) {
   // truth until release.
   const [dragging, setDragging] = useState(false);
   const [draftFraction, setDraftFraction] = useState<number>(0);
+  // After the user releases, hold the committed target visible until the
+  // engine actually navigates there (goTo resolves + relocate lands).
+  // Without this, releasing flips the thumb back to the stale store
+  // `fraction` for the gap between release and navigation — the visible
+  // "bounce back to the original position".
+  const [pendingFraction, setPendingFraction] = useState<number | null>(null);
   const trackRef = useRef<HTMLDivElement>(null);
 
   // Compute the active chapter label (best-effort: walk the TOC).
@@ -65,7 +71,9 @@ export function ReaderProgressBar({ goTo, bookTitle }: ReaderProgressBarProps) {
     return findLabel(toc);
   })();
 
-  const effectiveFraction = dragging ? draftFraction : fraction;
+  // Display priority: live drag > committed-but-not-yet-navigated target >
+  // the store's reported position.
+  const effectiveFraction = dragging ? draftFraction : (pendingFraction ?? fraction);
   const percentage = Math.max(0, Math.min(100, Math.round(effectiveFraction * 100)));
 
   const updateFromClientX = useCallback((clientX: number) => {
@@ -87,14 +95,19 @@ export function ReaderProgressBar({ goTo, bookTitle }: ReaderProgressBarProps) {
       updateFromClientX(e.clientX);
       // Read the most recent draftFraction from the closure-friendly ref.
       const final = draftFractionRef.current;
+      // Commit: stop dragging but KEEP showing the target (pendingFraction)
+      // so the thumb doesn't snap back to the stale store value while the
+      // engine navigates. Navigation is issued ONCE, here on release —
+      // never during the drag — which also avoids the goTo race.
       setDragging(false);
-      try {
-        // foliate-js's `goTo` accepts a string CFI/href/fraction. The
-        // fraction form is "0..1" — we pass the numeric string.
-        void goTo(String(final));
-      } catch (err) {
-        console.error('[ReaderProgressBar] goTo failed:', err);
-      }
+      setPendingFraction(final);
+      // foliate-js's `goTo` accepts a string CFI/href/fraction. The
+      // fraction form is "0..1" — we pass the numeric string. Release the
+      // visual hold only once navigation has settled (the relocate it
+      // triggers has updated the store to the real landed position).
+      Promise.resolve(goTo(String(final)))
+        .catch((err) => console.error('[ReaderProgressBar] goTo failed:', err))
+        .finally(() => setPendingFraction(null));
     };
     const onCancel = () => {
       setDragging(false);

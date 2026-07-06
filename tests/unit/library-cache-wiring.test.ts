@@ -46,6 +46,13 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: async () => ({ from: () => makeQueryStub() }),
 }));
 
+// The per-user queries now use the cookie-less service-role client (so they can
+// run inside `unstable_cache` without touching cookies()). `createAdminClient`
+// is synchronous, unlike the async server `createClient`.
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: () => ({ from: () => makeQueryStub() }),
+}));
+
 import { getMyLibrary, getProgressMap } from '@/features/library/queries';
 import { userLibraryTag, progressTag } from '@/features/library/cache';
 

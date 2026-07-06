@@ -113,4 +113,5 @@ export const SHORTCUTS = {
   increaseFont: { description: 'Increase font size', keys: ['+', '='] },
   decreaseFont: { description: 'Decrease font size', keys: ['-'] },
   toggleChrome: { description: 'Toggle chrome', keys: ['c'] },
+  toggleFullscreen: { description: 'Toggle fullscreen', keys: ['f'] },
 } as const satisfies Record<string, ShortcutDefinition>;

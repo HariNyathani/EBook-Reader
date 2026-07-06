@@ -25,6 +25,7 @@ import { useProgressSync } from '../progress/use-progress-sync';
 import { useReadingSession } from '../progress/use-reading-session';
 import { useReaderControls } from '../hooks/use-reader-controls';
 import { useChromeVisibility } from '../hooks/use-chrome-visibility';
+import { useFullscreen } from '../hooks/use-fullscreen';
 import { TapZones } from './tap-zones';
 import { ReaderChrome } from './reader-chrome';
 import { ReaderLoading } from './reader-loading';
@@ -89,6 +90,7 @@ export default function ReaderView({
   bookTitle,
 }: ReaderViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const theme = useReaderStore((s) => s.theme);
 
   // The sole bridge between React and the engine.
@@ -111,8 +113,12 @@ export default function ReaderView({
   // the idle timer and reveal-on-activity listeners).
   const { toggle: toggleChrome } = useChromeVisibility();
 
-  // Phase 11: keyboard shortcuts (←/→/Esc/`/`/t/+/-/c).
-  useReaderControls({ next, prev, toggleChrome });
+  // V1.1: native fullscreen — fullscreens the whole reader root (engine +
+  // chrome + panels) so the chrome overlay keeps working while fullscreen.
+  const { isFullscreen, toggleFullscreen } = useFullscreen(rootRef);
+
+  // Phase 11: keyboard shortcuts (←/→/Esc/`/`/t/+/-/c/f).
+  useReaderControls({ next, prev, toggleChrome, toggleFullscreen });
 
   // Stable callbacks for the tap-zones and chrome.
   const onPrev = useCallback(() => prev(), [prev]);
@@ -135,7 +141,11 @@ export default function ReaderView({
   const showLoading = !isReady && !error;
 
   return (
-    <div className="relative h-full w-full overflow-hidden" style={{ backgroundColor: bgColor }}>
+    <div
+      ref={rootRef}
+      className="relative h-full w-full overflow-hidden"
+      style={{ backgroundColor: bgColor }}
+    >
       {/* Engine mount point — the engine renders into this div. */}
       <div ref={containerRef} className="absolute inset-0" />
 
@@ -148,7 +158,12 @@ export default function ReaderView({
       />
 
       {/* Auto-hiding reader chrome (top toolbar + bottom progress bar). */}
-      <ReaderChrome goTo={goTo} bookTitle={bookTitle} />
+      <ReaderChrome
+        goTo={goTo}
+        bookTitle={bookTitle}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={toggleFullscreen}
+      />
 
       {/* Drawers / panels. */}
       <TocDrawer onNavigate={(href) => void goTo(href)} />

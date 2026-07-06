@@ -46,9 +46,15 @@ export async function saveProgressAction(
     // Persist (conditional upsert)
     const stored = await persistProgress(claims.userId, bookId, cfi, percentage, updatedAt);
 
-    // Revalidate progress cache (ISD §10.Y)
-    revalidateTag(progressTag(claims.userId));
-
+    // DELIBERATELY NO revalidateTag HERE. Revalidating from a Server Action
+    // makes Next.js re-render the CURRENT route's RSC tree inside the POST
+    // response — i.e. every debounced save re-ran the reader page (~1s),
+    // shipped a fresh `initialCfi` prop to ReaderView, and (before the hook
+    // was hardened) re-initialized the engine: the re-init loop. Progress
+    // saves are a hot path fired every few page turns; the library's
+    // progress cache instead revalidates when the session actually ends
+    // (endSessionAction below + the /api/progress beacon route), which is
+    // the only moment the user can be looking at the library again.
     return ok({ storedAt: stored.updated_at });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to save progress';
@@ -80,6 +86,12 @@ export async function endSessionAction(input: unknown): Promise<ActionResult> {
 
     // Persist (best-effort)
     await persistSession(claims.userId, bookId, startedAt, endedAt, durationSeconds);
+
+    // Revalidate the per-user progress cache HERE (not per-save — see
+    // saveProgressAction above). A session ends exactly when the user leaves
+    // the reader, so this is the moment the library / continue-reading views
+    // need fresh percentages (ISD §10.Y, eventual consistency).
+    revalidateTag(progressTag(claims.userId));
 
     return ok();
   } catch (err) {

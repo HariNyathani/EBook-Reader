@@ -76,6 +76,54 @@ describe('csp — nonce-based strict CSP (Phase 15)', () => {
       const csp = buildCsp({ nonce: 'abc' });
       expect(csp).toContain("worker-src 'self' blob:");
     });
+
+    it('PRESERVES blob: in connect-src so foliate can fetch() the book objectURL', () => {
+      // Regression: foliate-js receives the EPUB as a blob: objectURL string
+      // and internally fetch()es it. A fetch of a blob: URL is a connect-src
+      // request; without blob: here the reader throws "Failed to fetch".
+      const csp = buildCsp({ nonce: 'abc' });
+      const match = csp.match(/connect-src[^;]*/);
+      expect(match?.[0]).toContain('blob:');
+    });
+
+    it("allows inline styles (style-src 'unsafe-inline' + blob:) for the reader iframe", () => {
+      // Regression (blank reader): the EPUB section renders in an
+      // allow-same-origin blob: iframe that INHERITS this CSP. foliate's
+      // injected <style> theme CSS and the EPUB's inline styles / blob:
+      // stylesheets can't carry our nonce, so a nonce-only style-src blanks
+      // the book. style-src must therefore permit inline + blob:.
+      const csp = buildCsp({ nonce: 'abc' });
+      const match = csp.match(/style-src[^;]*/);
+      expect(match?.[0]).toContain(`'unsafe-inline'`);
+      expect(match?.[0]).toContain('blob:');
+    });
+
+    it('does NOT put a nonce on style-src (a nonce would void unsafe-inline)', () => {
+      // When a nonce/hash is present in style-src, browsers ignore
+      // 'unsafe-inline'. So the style nonce must be dropped for the
+      // inline-style allowance to take effect.
+      const csp = buildCsp({ nonce: 'abc' });
+      const match = csp.match(/style-src[^;]*/);
+      expect(match?.[0]).not.toContain('nonce-');
+    });
+
+    it('allows blob: fonts (EPUB-embedded fonts) in font-src', () => {
+      const csp = buildCsp({ nonce: 'abc' });
+      const match = csp.match(/font-src[^;]*/);
+      expect(match?.[0]).toContain('blob:');
+    });
+  });
+
+  describe('buildCsp — script-src stays strict even though style-src relaxes', () => {
+    it('keeps script-src nonce-based with NO unsafe-inline', () => {
+      // The style-src relaxation must NOT bleed into script-src: XSS
+      // protection depends on scripts staying nonce + strict-dynamic only.
+      const csp = buildCsp({ nonce: 'abc' });
+      const match = csp.match(/script-src[^;]*/);
+      expect(match?.[0]).toContain(`'nonce-abc'`);
+      expect(match?.[0]).toContain(`'strict-dynamic'`);
+      expect(match?.[0]).not.toContain(`'unsafe-inline'`);
+    });
   });
 
   describe('buildCsp — required security directives', () => {
@@ -135,11 +183,11 @@ describe('csp — nonce-based strict CSP (Phase 15)', () => {
 
     it('omits Supabase/Sentry when not configured', () => {
       const csp = buildCsp({ nonce: 'abc' });
-      expect(csp).toContain("connect-src 'self'");
-      // The next ' ' after 'self' should be the end of the directive,
-      // not another origin.
+      // connect-src always keeps 'self' + blob: (blob: is required for the
+      // foliate reader, see the foliate-js required-directives block above).
+      // With no external origins configured, that is the entire directive.
       const match = csp.match(/connect-src[^;]*/);
-      expect(match?.[0]).toBe("connect-src 'self'");
+      expect(match?.[0]).toBe("connect-src 'self' blob:");
     });
   });
 

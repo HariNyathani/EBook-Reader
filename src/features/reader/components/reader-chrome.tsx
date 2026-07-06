@@ -29,9 +29,18 @@ interface ReaderChromeProps {
   goTo: (target: string) => Promise<void>;
   /** Optional book title for the toolbar. */
   bookTitle?: string | null;
+  /** Whether the reader root is currently in native fullscreen. */
+  isFullscreen: boolean;
+  /** Toggles native fullscreen (V1.1). */
+  onToggleFullscreen: () => void;
 }
 
-export function ReaderChrome({ goTo, bookTitle }: ReaderChromeProps) {
+export function ReaderChrome({
+  goTo,
+  bookTitle,
+  isFullscreen,
+  onToggleFullscreen,
+}: ReaderChromeProps) {
   const theme = useReaderStore((s) => s.theme);
   const chromeVisible = useUiStore((s) => s.chromeVisible);
   const reducedMotion = usePrefersReducedMotion();
@@ -73,7 +82,11 @@ export function ReaderChrome({ goTo, bookTitle }: ReaderChromeProps) {
             borderBottom: `1px solid ${palette.fg}1a`,
           }}
         >
-          <ReaderToolbar title={bookTitle} />
+          <ReaderToolbar
+            title={bookTitle}
+            isFullscreen={isFullscreen}
+            onToggleFullscreen={onToggleFullscreen}
+          />
         </div>
       </div>
 

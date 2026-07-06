@@ -2,6 +2,7 @@ import 'server-only';
 
 import { unstable_cache } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { Book } from '@/types';
 import type { CatalogView } from '@/types/library';
 import { LIBRARY_TAG, userLibraryTag, progressTag } from './cache';
@@ -10,11 +11,15 @@ import { LIBRARY_PAGE_SIZE, type SortOption } from './constants';
 /**
  * Fetches a paginated, sorted, searchable catalog of all books.
  *
- * Security: Uses the request-scoped server client (RLS ensures only approved users see books).
+ * Security: Uses the service-role admin client. Next.js 15 forbids reading
+ * `cookies()` (which the request-scoped server client does) inside an
+ * `unstable_cache` scope, so we use the cookie-less admin client here. The
+ * catalog is identical for every approved user, so bypassing RLS is safe —
+ * no per-user filtering is required.
  * Caching: Wrapped in `unstable_cache` with tag `library` — invalidated by admin upload/delete.
  *
- * ISD §8.Y: The catalog is the same for all approved users (RLS grants all approved users SELECT).
- * Therefore a shared cache keyed by sort/page/query (not userId) is safe.
+ * ISD §8.Y: The catalog is the same for all approved users. Therefore a shared
+ * cache keyed by sort/page/query (not userId) is safe.
  *
  * @param options - Search, sort, and pagination parameters
  */
@@ -27,7 +32,8 @@ export const getCatalog = unstable_cache(
   }): Promise<CatalogView> => {
     const { query, sort = 'recent', page = 1, pageSize = LIBRARY_PAGE_SIZE } = options;
 
-    const supabase = await createClient();
+    // Admin (service-role) client: no cookies() — safe inside unstable_cache.
+    const supabase = createAdminClient();
 
     // Build the query — Phase 14 (ISD §14.H): column pruning. We only
     // select the columns the library grid actually renders, not `*`.
@@ -83,14 +89,17 @@ export const getCatalog = unstable_cache(
 /**
  * Fetches a single book by ID.
  *
- * Security: Uses the request-scoped server client (RLS ensures only approved users see books).
+ * Security: Uses the service-role admin client (cookie-less, so it is safe inside
+ * `unstable_cache`). Book rows are visible to every approved user, so bypassing
+ * RLS for this global lookup is safe.
  * Caching: Wrapped in `unstable_cache` with tag `library`.
  *
  * @param id - Book UUID
  */
 export const getBookById = unstable_cache(
   async (id: string): Promise<Book | null> => {
-    const supabase = await createClient();
+    // Admin (service-role) client: no cookies() — safe inside unstable_cache.
+    const supabase = createAdminClient();
 
     // Phase 14 (ISD §14.H): explicit column list. Single-row lookup;
     // selecting `*` is a footgun when the type definition is narrower
@@ -115,7 +124,9 @@ export const getBookById = unstable_cache(
 /**
  * Fetches the current user's "My Library" books.
  *
- * Security: Uses the request-scoped server client (RLS ensures user_id = auth.uid()).
+ * Security: Uses the service-role admin client (cookie-less, required inside
+ * `unstable_cache`). Because the admin client BYPASSES RLS, data isolation is
+ * enforced manually via `.eq('user_id', userId)` on the query below.
  * Caching: Wrapped in `unstable_cache` with a per-user key AND a per-user tag
  * (`library:{userId}`).
  *
@@ -133,14 +144,19 @@ export const getBookById = unstable_cache(
 export function getMyLibrary(userId: string): Promise<Book[]> {
   return unstable_cache(
     async (): Promise<Book[]> => {
-      const supabase = await createClient();
+      // Admin (service-role) client: no cookies() — safe inside unstable_cache.
+      // RLS is bypassed, so the `.eq('user_id', userId)` filter below is what
+      // enforces per-user data isolation.
+      const supabase = createAdminClient();
 
-      // Join user_libraries with books
+      // Join user_libraries with books — Phase 14 (ISD §14.H): explicit
+      // column list on the joined relation (was `books(*)`), matching the
+      // pruned list used by getCatalog/getBookById.
       const { data, error } = await supabase
         .from('user_libraries')
         .select(
           `
-        book:books(*)
+        book:books(id, title, author, cover_key, file_key, format, created_at, updated_at)
       `,
         )
         .eq('user_id', userId)
@@ -166,7 +182,9 @@ export function getMyLibrary(userId: string): Promise<Book[]> {
 /**
  * Fetches a map of book_id → reading progress percentage for the current user.
  *
- * Security: Uses the request-scoped server client (RLS ensures user_id = auth.uid()).
+ * Security: Uses the service-role admin client (cookie-less, required inside
+ * `unstable_cache`). RLS is bypassed, so isolation is enforced manually via
+ * `.eq('user_id', userId)` on the query below.
  * Caching: Wrapped in `unstable_cache` with a per-user key AND a per-user tag
  * (`progress:{userId}`).
  *
@@ -178,7 +196,10 @@ export function getMyLibrary(userId: string): Promise<Book[]> {
 export function getProgressMap(userId: string): Promise<Record<string, number>> {
   return unstable_cache(
     async (): Promise<Record<string, number>> => {
-      const supabase = await createClient();
+      // Admin (service-role) client: no cookies() — safe inside unstable_cache.
+      // RLS is bypassed, so the `.eq('user_id', userId)` filter below enforces
+      // per-user data isolation.
+      const supabase = createAdminClient();
 
       const { data, error } = await supabase
         .from('reading_progress')
@@ -220,7 +241,10 @@ export interface BookWithProgressAndTimestamp extends Book {
  * ISD §10.I: Returns in-progress books ordered by recency for the "Continue Reading" section.
  * Excludes finished books (100%) and unstarted books (0%).
  *
- * Security: Uses the request-scoped server client (RLS ensures user_id = auth.uid()).
+ * Security: Uses the service-role admin client (cookie-less, required inside
+ * `unstable_cache`). RLS is bypassed, so isolation is enforced manually via
+ * `.eq('user_id', userId)` on the progress query; the book fetch is then scoped
+ * to that user's book IDs.
  * Caching: Wrapped in `unstable_cache` with per-user tag (`progress:{userId}`).
  *
  * @param userId - Current user's ID (from session claims)
@@ -232,7 +256,10 @@ export function getContinueReading(
 ): Promise<BookWithProgressAndTimestamp[]> {
   return unstable_cache(
     async (): Promise<BookWithProgressAndTimestamp[]> => {
-      const supabase = await createClient();
+      // Admin (service-role) client: no cookies() — safe inside unstable_cache.
+      // RLS is bypassed, so the `.eq('user_id', userId)` filter below enforces
+      // per-user data isolation.
+      const supabase = createAdminClient();
 
       // Fetch in-progress reading records (0 < percentage < 100)
       const { data: progressData, error: progressError } = await supabase

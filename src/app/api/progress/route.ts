@@ -16,9 +16,11 @@ import 'server-only';
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { getClaims } from '@/features/auth/session';
 import { progressSchema } from '@/features/reader/progress/schemas';
 import { persistProgress } from '@/features/reader/progress/persist-progress';
+import { progressTag } from '@/features/library/cache';
 import { progressLimiter, identifierForIp } from '@/lib/security/rate-limit';
 import { logger } from '@/lib/logging/logger';
 
@@ -60,6 +62,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Persist (conditional upsert, ISD §10.F)
     await persistProgress(claims.userId, bookId, cfi, percentage, updatedAt);
+
+    // The beacon fires when the user LEAVES the reader (pagehide / tab
+    // hidden / SPA unmount flush). Invalidate the per-user progress cache so
+    // the next library render shows fresh percentages. Route-handler
+    // revalidateTag only marks the data cache — it cannot re-render the
+    // sender's page, so (unlike the old per-save Server-Action revalidation)
+    // it can never feed a new `initialCfi` back into an open reader.
+    revalidateTag(progressTag(claims.userId));
 
     // Always return 204 (beacon doesn't consume response)
     return new NextResponse(null, { status: 204 });

@@ -16,7 +16,7 @@
  * The hook returns imperative controls (next, prev, goTo, search) for UI components.
  */
 
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { createReaderEngine } from '../engine';
 import type { BookFormat, ReaderEngine, ReaderEngineEvent, TocItem } from '../engine/types';
 import { fetchBookBlob } from '../lib/fetch-book-blob';
@@ -67,6 +67,32 @@ interface ReaderControls {
  * This is the ONLY hook that may interact with the engine. UI components call this
  * and use the returned controls.
  */
+/**
+ * Normalizes an unknown error thrown during book load into a descriptive
+ * `Error`. The error can originate from two places:
+ *   1. `fetchBookBlob` — already a `ReaderLoadError` with a clear message.
+ *   2. `engine.open()` — foliate `fetch()`es the `blob:` objectURL to read
+ *      the zip. If that fetch is blocked (e.g. a CSP `connect-src` gap) it
+ *      throws a bare `TypeError: Failed to fetch`, which is otherwise
+ *      undiagnosable. We rewrite that specific case into an actionable
+ *      message while preserving the original as `cause`.
+ */
+function toReaderError(err: unknown): Error {
+  if (err instanceof Error && err.name === 'ReaderLoadError') return err;
+  const isFailedToFetch =
+    err instanceof TypeError && /failed to fetch|load failed|networkerror/i.test(err.message);
+  if (isFailedToFetch) {
+    return new Error(
+      'Could not read this book’s file. The browser blocked reading the ' +
+        'downloaded book data — this usually means a Content-Security-Policy ' +
+        '“connect-src” gap (blob: must be allowed) or a lost connection. ' +
+        'Check the console for a CSP violation.',
+      { cause: err },
+    );
+  }
+  return err instanceof Error ? err : new Error(String(err));
+}
+
 export function useReaderEngine({
   containerRef,
   bookId,
@@ -77,6 +103,22 @@ export function useReaderEngine({
   const engineRef = useRef<ReaderEngine | null>(null);
   const revokeRef = useRef<(() => void) | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // `initialCfi` is a MOUNT-TIME input (the resume position), not a live
+  // subscription. Any RSC re-render of the reader page (e.g. a router
+  // refresh after a Server Action revalidates) passes the latest saved CFI
+  // back down as a NEW `initialCfi` prop value. If the init effect depended
+  // on the prop, that churn would tear the engine down and re-open the book
+  // — the re-init loop ("Opening book" flash, typography snapping back,
+  // progress-save spam). So the prop is mirrored into a ref and read only
+  // inside the 'ready' handler; prop churn can never re-run the init effect.
+  // The sync effect below is declared BEFORE the init effect so that when a
+  // bookId swap legitimately re-runs init, the ref already holds the new
+  // book's resume position.
+  const initialCfiRef = useRef(initialCfi);
+  useEffect(() => {
+    initialCfiRef.current = initialCfi;
+  }, [initialCfi]);
 
   const [toc, setToc] = useState<TocItem[]>([]);
   const [error, setError] = useState<Error | null>(null);
@@ -90,13 +132,38 @@ export function useReaderEngine({
   // Phase 11: track the current chapter href for TOC highlighting.
   const setActiveChapterHref = useReaderStore((s) => s.setActiveChapterHref);
 
-  // Subscribe to the typography/theme slice for setStyles
-  const theme = useReaderStore((s) => s.theme);
-  const fontFamily = useReaderStore((s) => s.fontFamily);
-  const fontSize = useReaderStore((s) => s.fontSize);
-  const lineHeight = useReaderStore((s) => s.lineHeight);
-  const margin = useReaderStore((s) => s.margin);
-  const textAlign = useReaderStore((s) => s.textAlign);
+  // NOTE: typography/theme (fontSize, fontFamily, lineHeight, margin,
+  // textAlign, theme) is deliberately NOT read via useReaderStore selectors
+  // here. Subscribing to it would re-render this hook — and therefore the
+  // whole reader subtree — on every typography tweak, and any churn in the
+  // init effect below risks re-opening the book. Instead we read the slice
+  // imperatively (useReaderStore.getState()) inside `applyStyles`, and we
+  // drive it from a store *subscription* (Effect 2) + the engine 'ready'
+  // event. Typography changes thus flow to engine.setStyles() ONLY — they
+  // never touch React render or the engine lifecycle.
+
+  /**
+   * Apply the current typography/theme slice to the engine. Reads the latest
+   * store state at call time (so it's stable — no deps — and always current),
+   * and is invoked both on the engine 'ready' event (so every open/re-open
+   * paints with the user's settings instead of engine defaults) and whenever
+   * the durable typography slice changes (Effect 2).
+   */
+  const applyStyles = useCallback(() => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    const s = useReaderStore.getState();
+    engine.setStyles(
+      mapStateToStyle({
+        theme: s.theme,
+        fontFamily: s.fontFamily,
+        fontSize: s.fontSize,
+        lineHeight: s.lineHeight,
+        margin: s.margin,
+        textAlign: s.textAlign,
+      }),
+    );
+  }, []);
 
   /**
    * Effect 1: Initialize the engine, load the book, subscribe to events.
@@ -132,9 +199,16 @@ export function useReaderEngine({
               setIsReady(true);
               setLoading(false);
 
-              // If we have an initial CFI, navigate to it (Phase 10 resume)
-              if (initialCfi) {
-                engine.goTo(initialCfi).catch((err) => {
+              // Paint the user's saved typography/theme immediately on open.
+              // Without this, a freshly opened (or re-opened) engine renders
+              // with foliate's defaults until the next typography change —
+              // which is what made settings appear to "revert to default".
+              applyStyles();
+
+              // If we have an initial CFI, navigate to it (Phase 10 resume).
+              // Read via the ref (NOT the prop) — see initialCfiRef above.
+              if (initialCfiRef.current) {
+                engine.goTo(initialCfiRef.current).catch((err) => {
                   console.error('[useReaderEngine] Failed to goTo initialCfi:', err);
                 });
               }
@@ -172,7 +246,7 @@ export function useReaderEngine({
           // Fetch was cancelled (unmount) — ignore
           return;
         }
-        setError(err instanceof Error ? err : new Error(String(err)));
+        setError(toReaderError(err));
         setLoading(false);
       }
     }
@@ -208,12 +282,21 @@ export function useReaderEngine({
       setTocStore([]);
       setActiveChapterHref(null);
     };
+    // DELIBERATELY STATIC DEPS (the re-init-loop guard):
+    // - `initialCfi` MUST NOT appear here — it churns on every RSC refresh
+    //   of the reader page and is consumed via initialCfiRef instead.
+    // - Typography/theme MUST NOT appear here — they flow through Effect 2's
+    //   store subscription → engine.setStyles(), never through re-init.
+    // Everything listed below is referentially stable for the life of the
+    // mounted reader (refs, zustand setters, stable useCallback), except
+    // bookId/userId/format, which only change on a real book swap — the one
+    // case where a teardown + re-open is correct.
   }, [
     containerRef,
     bookId,
     userId,
     format,
-    initialCfi,
+    applyStyles,
     setIsReady,
     setCurrentCfi,
     setFraction,
@@ -222,32 +305,40 @@ export function useReaderEngine({
   ]);
 
   /**
-   * Effect 2: Subscribe to reader-store typography/theme changes → engine.setStyles.
+   * Effect 2: Live typography/theme updates → engine.setStyles.
    *
-   * This effect runs whenever the typography slice changes and calls engine.setStyles
-   * with the mapped CSS variables. It's narrowly scoped to avoid re-running on
-   * unrelated store changes (currentCfi, isReady, etc.).
+   * This subscribes to the store IMPERATIVELY (useReaderStore.subscribe)
+   * rather than via a render-triggering selector. That is the crux of the
+   * decoupling: a typography tweak runs setStyles directly on the engine and
+   * never re-renders React, so it can never re-run the init effect or
+   * re-open the book. The effect mounts once (empty deps) and lives for the
+   * hook's lifetime; the engine is read live via engineRef.
+   *
+   * We compare only the durable typography fields so unrelated store writes
+   * (currentCfi, fraction, isReady, search state, …) don't call setStyles.
+   * The initial apply-on-open is handled by the 'ready' handler above.
    */
   useEffect(() => {
-    const engine = engineRef.current;
-    if (!engine) return;
-
-    const style = mapStateToStyle({
-      theme,
-      fontFamily,
-      fontSize,
-      lineHeight,
-      margin,
-      textAlign,
+    let raf = 0;
+    const unsubscribe = useReaderStore.subscribe((state, prev) => {
+      const changed =
+        state.theme !== prev.theme ||
+        state.fontFamily !== prev.fontFamily ||
+        state.fontSize !== prev.fontSize ||
+        state.lineHeight !== prev.lineHeight ||
+        state.margin !== prev.margin ||
+        state.textAlign !== prev.textAlign;
+      if (!changed) return;
+      // Coalesce rapid slider changes into a single paint.
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(applyStyles);
     });
 
-    // Apply styles (coalesce rapid changes via requestAnimationFrame if needed)
-    requestAnimationFrame(() => {
-      if (engineRef.current) {
-        engineRef.current.setStyles(style);
-      }
-    });
-  }, [theme, fontFamily, fontSize, lineHeight, margin, textAlign]);
+    return () => {
+      cancelAnimationFrame(raf);
+      unsubscribe();
+    };
+  }, [applyStyles]);
 
   /**
    * Imperative controls — delegate to the engine.
